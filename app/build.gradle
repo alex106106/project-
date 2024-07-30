@@ -9,12 +9,12 @@ plugins {
 
 android {
     namespace 'com.example.savethem'
-    compileSdk 33
+    compileSdk 34
 
     defaultConfig {
         applicationId "com.example.savethem"
         minSdk 21
-        targetSdk 33
+        targetSdk 34
         versionCode 1
         versionName "1.0"
 
@@ -41,7 +41,7 @@ android {
         compose true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion '1.1.1'
+        kotlinCompilerExtensionVersion '1.4.0'
     }
     packagingOptions {
         resources {
@@ -94,6 +94,8 @@ dependencies {
     implementation 'com.google.android.material:material:1.4.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
     implementation 'com.google.android.gms:play-services-wearable:18.1.0'
+    implementation 'androidx.room:room-common:2.6.1'
+    implementation 'androidx.room:room-ktx:2.6.1'
     kapt "com.google.dagger:hilt-android-compiler:2.43.2"
 
     implementation "com.squareup.retrofit2:retrofit:2.9.0"
@@ -102,13 +104,20 @@ dependencies {
 //    location
     implementation 'com.google.android.gms:play-services-location:19.0.1'
 
+//    SQLITE
+    implementation "androidx.sqlite:sqlite:2.2.0"
+
+
+    def room_version = "2.5.0" // Asegúrate de usar la última versión disponible
+
+    implementation "androidx.room:room-runtime:$room_version"
+    annotationProcessor "androidx.room:room-compiler:$room_version" // Para proyectos Java
+    kapt "androidx.room:room-compiler:$room_version" // Para proyectos Kotlin
+
     implementation "androidx.compose.animation:animation:$compose_ui_version"
     implementation 'com.squareup.okhttp3:okhttp:4.9.1'
     implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.4.0"
     implementation 'com.android.volley:volley:1.2.1'
-
-
-
 
     implementation 'androidx.core:core-ktx:1.7.0'
     implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.3.1'

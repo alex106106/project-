@@ -3,10 +3,12 @@ package com.example.savethem.DAO
 import android.content.Context
 import android.util.Log
 import android.widget.Toast
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import com.example.savethem.Model.*
 import com.example.savethem.call.enviar
+import com.example.savethem.util.DatabaseHelper
 //import com.example.savethem.util.asda
 //import com.example.savethem.util.constants.Screens.messageID
 //import com.example.savethem.util.constants.Screens.messageID
@@ -14,12 +16,19 @@ import com.example.savethem.util.constants.Screens.time
 import com.google.android.gms.maps.model.LatLng
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
+import com.google.firebase.database.ktx.database
+import com.google.firebase.ktx.Firebase
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.channels.trySendBlocking
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import java.util.UUID
+import java.util.concurrent.CountDownLatch
+import javax.crypto.Cipher
+import javax.crypto.KeyGenerator
+import javax.crypto.SecretKey
 import javax.inject.Inject
 
 class DAO @Inject constructor() : AccessDAO {
@@ -239,6 +248,14 @@ class DAO @Inject constructor() : AccessDAO {
         })
     }
 
+    //    SQLITE ADDFRIEND
+    override fun addFriendSQL(currentUser: Long, friend: registerModel): Long {
+        val context = LocalContext
+//         val dbHelper = DatabaseHelper(context = context)
+        return 1
+    }
+
+
     override fun addFriendChat(addFriend: registerModel, uid: String) {
         val user = FirebaseAuth.getInstance().currentUser?.uid
         val uid = uid
@@ -365,7 +382,7 @@ class DAO @Inject constructor() : AccessDAO {
         val result = MutableLiveData<ChatModel>()
         val cu = auth.currentUser
         addMessage.IDMessage = messageID
-        addMessage.UUIDSender = FirebaseAuth.getInstance().currentUser?.uid
+        addMessage.UUIDSender = FirebaseAuth.getInstance().currentUser?.uid!!
         val messageRef = FirebaseDatabase.getInstance().getReference("users/${cu?.uid}/friends/$id/chat/$messageID")
         val timestamp = addMessage.copy(timestamp = time)
         messageRef.setValue(addMessage).addOnSuccessListener {
@@ -378,45 +395,7 @@ class DAO @Inject constructor() : AccessDAO {
         return result
     }
 
-    override fun addLocation(
-        addMessage: LocationModel,
-        id: String,
-        messageID: String
-    ): LiveData<LocationModel> {
-        val result = MutableLiveData<LocationModel>()
-        val currentUser = auth.currentUser
-        val locationID = UUID.randomUUID()
-        addMessage.IDMessage = messageID
-        addMessage.UUIDSender = currentUser?.uid
-        val currentUserLocationRef = FirebaseDatabase.getInstance().getReference("users/${currentUser?.uid}/friends/$id/location")
-        currentUserLocationRef.addListenerForSingleValueEvent(object : ValueEventListener {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                val currentUserHasLocation = snapshot.exists()
 
-                // Verificar si el currentUser ya tiene una ubicación en este chat
-                if (!currentUserHasLocation) {
-                    val messageRef = currentUserLocationRef.child(messageID)
-                    val timestamp = addMessage.copy(timestamp = time)
-                    messageRef.setValue(addMessage).addOnSuccessListener {
-                        messageRef.setValue(timestamp).addOnSuccessListener {
-                            result.value = addMessage.copy(timestamp = time)
-                        }
-                    }.addOnFailureListener {
-                        // Handle failure
-                    }
-                } else {
-                    // El currentUser ya tiene una ubicación en este chat, no realizar ninguna acción
-                    result.value = null
-                }
-            }
-
-            override fun onCancelled(error: DatabaseError) {
-                // Handle cancellation
-            }
-        })
-
-        return result
-    }
 
     override suspend fun getLocation(idUser: String, id: String): Flow<List<LocationModel>> = callbackFlow {
         val messagesRef = FirebaseDatabase.getInstance().getReference("users/$idUser/friends/$id/locationFriend")
@@ -438,7 +417,6 @@ class DAO @Inject constructor() : AccessDAO {
 
         messagesRef.addValueEventListener(listener)
 
-        // Cancel the listener when the flow is cancelled
         awaitClose { messagesRef.removeEventListener(listener) }
     }
 
@@ -483,6 +461,57 @@ class DAO @Inject constructor() : AccessDAO {
         return result
     }
 
+    override fun addLocation(
+        addMessage: LocationModel,
+        id: String,
+        messageID: String
+    ): LiveData<LocationModel> {
+        val result = MutableLiveData<LocationModel>()
+        val currentUser = FirebaseAuth.getInstance().currentUser ?: return result
+        addMessage.IDMessage = messageID
+        addMessage.UUIDSender = currentUser.uid
+        addMessage.timestamp = -1L // Valor temporal para el timestamp
+
+        // Ruta centralizada para la ubicación
+        val centralLocationRef = FirebaseDatabase.getInstance().getReference("locations").child(messageID)
+
+        // Rutas para referenciar la ubicación en los perfiles de los usuarios
+        val currentUserLocationRef = FirebaseDatabase.getInstance().getReference("users").child(currentUser.uid).child("locations").child(id).child(messageID)
+        val userLocationRef = FirebaseDatabase.getInstance().getReference("users").child(id).child("locations").child(currentUser.uid).child(messageID)
+
+        // Usar ServerValue.TIMESTAMP para obtener el timestamp del servidor
+        val locationData = addMessage.toMap().plus("timestamp" to ServerValue.TIMESTAMP)
+
+        centralLocationRef.setValue(locationData).addOnSuccessListener {
+            val updates = hashMapOf<String, Any>(
+                "/users/${currentUser.uid}/locations/$id/$messageID" to true,
+                "/users/$id/locations/${currentUser.uid}/$messageID" to true
+            )
+
+            FirebaseDatabase.getInstance().reference.updateChildren(updates).addOnSuccessListener {
+                // Obtener el timestamp del servidor
+                centralLocationRef.child("timestamp").addListenerForSingleValueEvent(object : ValueEventListener {
+                    override fun onDataChange(snapshot: DataSnapshot) {
+                        val serverTimestamp = snapshot.value as? Long
+                        serverTimestamp?.let {
+                            addMessage.timestamp = it
+                            result.value = addMessage
+                        }
+                    }
+
+                    override fun onCancelled(error: DatabaseError) {
+                        Log.e("addLocation", "Failed to get server timestamp: ${error.message}")
+                    }
+                })
+            }.addOnFailureListener {
+                Log.e("addLocation", "Failed to update location references: ${it.message}")
+            }
+        }.addOnFailureListener {
+            Log.e("addLocation", "Failed to send location: ${it.message}")
+        }
+
+        return result
+    }
 
     override suspend fun getLocationById(
         idUser: String,
@@ -490,44 +519,52 @@ class DAO @Inject constructor() : AccessDAO {
         latitude: Double,
         longitude: Double,
         context: Context,
-        token: String): LocationModel? {
-        val friendRef = FirebaseDatabase.getInstance().getReference("users/$idUser/friends/$id/locationFriend/")
-        val friendSnapshot = friendRef.get().await()
+        token: String
+    ): Flow<List<LocationModel>> = callbackFlow {
+        val currentUser = FirebaseAuth.getInstance().currentUser ?: run {
+            close(IllegalStateException("User not authenticated"))
+            return@callbackFlow
+        }
 
-        if (friendSnapshot.exists()) {
-            val friend = friendSnapshot.children.first()
-            val IDLocation = friend.child("idmessage").getValue(String::class.java)
-            val sender = friend.child("uuidsender").getValue(String::class.java)
-            val times = friend.child("timestamp").getValue(Long::class.java)
-            val lat = friend.child("location").child("latitude").getValue(Double::class.java)
-            val lon = friend.child("location").child("longitude").getValue(Double::class.java)
+        val locationsRef = FirebaseDatabase.getInstance().getReference("users/${currentUser.uid}/locations/$id").orderByKey()
 
+        val listener = object : ValueEventListener {
+            override fun onDataChange(snapshot: DataSnapshot) {
+                val locationIds = snapshot.children.mapNotNull { it.key }
+                val locations = mutableListOf<LocationModel>()
 
-            // Crear un Map con los campos que deseas actualizar y sus nuevos valores
-            val updates = HashMap<String, Any>()
-            updates["location/latitude"] = latitude
-            updates["location/longitude"] = longitude
-
-//            updates["uuidsender"] = "nuevoValorUUIDSender"
-
-            // Actualizar los datos utilizando updateChildren()
-            friendRef.child(friend.key ?: "").updateChildren(updates)
-                .addOnCompleteListener { task ->
-                    if (task.isSuccessful) {
-                        Toast.makeText(context, "Please enter email and password", Toast.LENGTH_SHORT).show()
-                    } else {
-                        // Ocurrió un error al actualizar los datos
+                // Crear una lista de deferreds para las solicitudes de ubicaciones
+                val deferreds = locationIds.map { locationId ->
+                    async(Dispatchers.IO) {
+                        val locationSnapshot = FirebaseDatabase.getInstance().getReference("locations/$locationId").get().await()
+                        locationSnapshot.getValue(LocationModel::class.java)
                     }
                 }
 
-            return LocationModel(
-                IDLocation ?: "",
-                sender ?: ""
-            )
+                // Esperar a que todas las solicitudes de ubicaciones se completen
+                launch(Dispatchers.IO) {
+                    val results = deferreds.awaitAll()
+                    locations.addAll(results.filterNotNull())
+
+                    // Enviar las ubicaciones al callbackFlow
+                    trySend(locations.sortedBy { it.timestamp }).isSuccess
+                }
+            }
+
+            override fun onCancelled(error: DatabaseError) {
+                close(error.toException())
+            }
         }
 
-        return null
+        locationsRef.addValueEventListener(listener)
+
+        // Cancelar el listener cuando el flow es cancelado
+        awaitClose { locationsRef.removeEventListener(listener) }
     }
+
+
+
+
 
 
 
@@ -569,33 +606,81 @@ class DAO @Inject constructor() : AccessDAO {
 
     override fun addMessage2(addMessage: ChatModel, id: String, idUser: String, messageID: String): LiveData<ChatModel> {
         val result = MutableLiveData<ChatModel>()
-
+        val currentUser = FirebaseAuth.getInstance().currentUser ?: return result
         addMessage.IDMessage = messageID
-        addMessage.UUIDSender = FirebaseAuth.getInstance().currentUser?.uid
-        val messageRef = FirebaseDatabase.getInstance().getReference("users/${idUser}/friends/$id/chat/$messageID")
-        val timestamp = addMessage.copy(timestamp = time)
-        messageRef.setValue(addMessage).addOnSuccessListener {
-            messageRef.setValue(timestamp).addOnSuccessListener{
-                result.value = addMessage.copy(timestamp = time)
+        addMessage.UUIDSender = currentUser.uid
+        addMessage.timestamp = -1L // Valor temporal para el timestamp
+
+        // Ruta centralizada para el mensaje
+        val centralMessageRef = FirebaseDatabase.getInstance().getReference("messages").child(messageID)
+
+        // Rutas para referenciar el mensaje en los perfiles de los usuarios
+        val senderChatRef = FirebaseDatabase.getInstance().getReference("users").child(currentUser.uid).child("chats").child(idUser).child(messageID)
+        val receiverChatRef = FirebaseDatabase.getInstance().getReference("users").child(idUser).child("chats").child(currentUser.uid).child(messageID)
+
+        // Usar ServerValue.TIMESTAMP para obtener el timestamp del servidor
+        val messageData = addMessage.toMap().plus("timestamp" to ServerValue.TIMESTAMP)
+
+        centralMessageRef.setValue(messageData).addOnSuccessListener {
+            val updates = hashMapOf<String, Any>(
+                "/users/${currentUser.uid}/chats/$idUser/$messageID" to true,
+                "/users/$idUser/chats/${currentUser.uid}/$messageID" to true
+            )
+
+            FirebaseDatabase.getInstance().reference.updateChildren(updates).addOnSuccessListener {
+                // Obtener el timestamp del servidor
+                centralMessageRef.child("timestamp").addListenerForSingleValueEvent(object : ValueEventListener {
+                    override fun onDataChange(snapshot: DataSnapshot) {
+                        val serverTimestamp = snapshot.value as? Long
+                        serverTimestamp?.let {
+                            addMessage.timestamp = it
+                            result.value = addMessage
+                        }
+                    }
+
+                    override fun onCancelled(error: DatabaseError) {
+                        Log.e("addMessage2", "Failed to get server timestamp: ${error.message}")
+                    }
+                })
+            }.addOnFailureListener {
+                Log.e("addMessage2", "Failed to update chat references: ${it.message}")
             }
         }.addOnFailureListener {
-
+            Log.e("addMessage2", "Failed to send message: ${it.message}")
         }
+
         return result
     }
 
-
     override suspend fun getAllMessage(idUser: String, id: String): Flow<List<ChatModel>> = callbackFlow {
-        val messagesRef = FirebaseDatabase.getInstance().getReference("users/$idUser/friends/$id/chat").orderByChild("timestamp")
+        val currentUser = FirebaseAuth.getInstance().currentUser ?: run {
+            close(IllegalStateException("User not authenticated"))
+            return@callbackFlow
+        }
+
+        val messagesRef = FirebaseDatabase.getInstance().getReference("users/${currentUser.uid}/chats/$id").orderByKey()
 
         val listener = object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
+                val messageIds = snapshot.children.mapNotNull { it.key }
                 val messages = mutableListOf<ChatModel>()
-                for (messageSnapshot in snapshot.children) {
-                    val message = messageSnapshot.getValue(ChatModel::class.java)
-                    message?.let { messages.add(it) }
+
+                // Crear una lista de deferreds para las solicitudes de mensajes
+                val deferreds = messageIds.map { messageId ->
+                    async(Dispatchers.IO) {
+                        val messageSnapshot = FirebaseDatabase.getInstance().getReference("messages/$messageId").get().await()
+                        messageSnapshot.getValue(ChatModel::class.java)
+                    }
                 }
-                trySendBlocking(messages)
+
+                // Esperar a que todas las solicitudes de mensajes se completen
+                launch(Dispatchers.IO) {
+                    val results = deferreds.awaitAll()
+                    messages.addAll(results.filterNotNull())
+
+                    // Enviar los mensajes al callbackFlow
+                    trySend(messages.sortedBy { it.timestamp }).isSuccess
+                }
             }
 
             override fun onCancelled(error: DatabaseError) {
@@ -605,7 +690,7 @@ class DAO @Inject constructor() : AccessDAO {
 
         messagesRef.addValueEventListener(listener)
 
-        // Cancel the listener when the flow is cancelled
+        // Cancelar el listener cuando el flow es cancelado
         awaitClose { messagesRef.removeEventListener(listener) }
     }
 
@@ -622,3 +707,54 @@ class DAO @Inject constructor() : AccessDAO {
     }
 
 }
+
+//fun generateAESKey(): SecretKey{
+//    val keyGenerator = KeyGenerator.getInstance("AES")
+//    keyGenerator.init(256)
+//    return keyGenerator.generateKey()
+//}
+//fun encryptedMessageWithAES(message: String, secretKey: SecretKey): String{
+//    val cipher = Cipher.getInstance("AES")
+//    cipher.init(Cipher.ENCRYPT_MODE, secretKey)
+//    val encryptedBytes = cipher.doFinal()
+//}
+
+//override fun addLocation(
+//    addMessage: LocationModel,
+//    id: String,
+//    messageID: String
+//): LiveData<LocationModel> {
+//    val result = MutableLiveData<LocationModel>()
+//    val currentUser = auth.currentUser
+//    val locationID = UUID.randomUUID()
+//    addMessage.IDMessage = messageID
+//    addMessage.UUIDSender = currentUser?.uid
+//    val currentUserLocationRef = FirebaseDatabase.getInstance().getReference("users/${currentUser?.uid}/friends/$id/location")
+//    currentUserLocationRef.addListenerForSingleValueEvent(object : ValueEventListener {
+//        override fun onDataChange(snapshot: DataSnapshot) {
+//            val currentUserHasLocation = snapshot.exists()
+//
+//            // Verificar si el currentUser ya tiene una ubicación en este chat
+//            if (!currentUserHasLocation) {
+//                val messageRef = currentUserLocationRef.child(messageID)
+//                val timestamp = addMessage.copy(timestamp = time)
+//                messageRef.setValue(addMessage).addOnSuccessListener {
+//                    messageRef.setValue(timestamp).addOnSuccessListener {
+//                        result.value = addMessage.copy(timestamp = time)
+//                    }
+//                }.addOnFailureListener {
+//                    // Handle failure
+//                }
+//            } else {
+//                // El currentUser ya tiene una ubicación en este chat, no realizar ninguna acción
+//                result.value = null
+//            }
+//        }
+//
+//        override fun onCancelled(error: DatabaseError) {
+//            // Handle cancellation
+//        }
+//    })
+//
+//    return result
+//}

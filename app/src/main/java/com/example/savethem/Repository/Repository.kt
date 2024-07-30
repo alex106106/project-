@@ -1,6 +1,7 @@
 package com.example.savethem.Repository
 
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import com.example.savethem.DAO.DAO
@@ -32,6 +33,34 @@ class Repository @Inject constructor(val DAO: DAO) {
     fun getLikes(commentId: String): LiveData<Pair<List<String>, Boolean>>{
         return DAO.getLikes(commentId)
     }
+
+    fun markMessageAsSeen(id: String, idUser: String, messageID: String) {
+        val centralMessageRef = FirebaseDatabase.getInstance().getReference("messages").child(messageID)
+        val senderChatRef = FirebaseDatabase.getInstance().getReference("users").child(id).child("chats").child(idUser).child(messageID)
+        val receiverChatRef = FirebaseDatabase.getInstance().getReference("users").child(idUser).child("chats").child(id).child(messageID)
+
+        // Marcamos el mensaje como visto y actualizamos el timestamp
+        val updates = hashMapOf(
+            "seen" to true,
+            "seenTimestamp" to ServerValue.TIMESTAMP
+        )
+
+        // Ejecutamos las actualizaciones atómicamente
+        centralMessageRef.updateChildren(updates).addOnSuccessListener {
+            senderChatRef.updateChildren(updates).addOnSuccessListener {
+                receiverChatRef.updateChildren(updates).addOnSuccessListener {
+                    Log.d("DAO", "Message marked as seen")
+                }.addOnFailureListener {
+                    Log.e("DAO", "Failed to mark message as seen in receiver's chat: ${it.message}")
+                }
+            }.addOnFailureListener {
+                Log.e("DAO", "Failed to mark message as seen in sender's chat: ${it.message}")
+            }
+        }.addOnFailureListener {
+            Log.e("DAO", "Failed to mark message as seen: ${it.message}")
+        }
+    }
+
 
 
     fun addLike(commentId: String, userId: String, liked: Boolean): LiveData<Boolean> {
@@ -85,7 +114,7 @@ class Repository @Inject constructor(val DAO: DAO) {
         return DAO.updateLocationById(addMessage, id, idUser, messageID)
     }
     suspend fun getLocationById(idUser: String, id: String, latitude: Double, longitude: Double, context: Context,
-                                token: String): LocationModel? {
+                                token: String):Flow<List<LocationModel>>{
         return DAO.getLocationById(idUser, id, latitude, longitude, context, token)
     }
     suspend fun getLocation(idUser: String, id: String): Flow<List<LocationModel>>{

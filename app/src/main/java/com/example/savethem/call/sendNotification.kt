@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -11,12 +12,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
@@ -62,59 +65,135 @@ fun boton(friendsViewModel: FriendsViewModel, navController: NavController) {
 	Box(
 		modifier = Modifier
 			.fillMaxSize()
-			.background(colorResource(id = R.color.md_pink_A100))
+			.background(colorResource(id = R.color.white))
 	) {
-		LazyColumn{
-			friends.forEach { friend ->
-				item {
-					Row(
+		Column() {
+			Row(
+				modifier = Modifier
+					.clickable {
+//								selectedFriend = friend.UUID!!
+//								true
+						navController.navigate(Screens.GlobalChat.route)
+
+					}
+					.padding(top = 7.dp, bottom = 7.dp, start = 14.dp, end = 14.dp)
+					.fillMaxWidth()
+					.padding(8.dp),
+				verticalAlignment = Alignment.CenterVertically
+			) {
+				Image(
+					painter = painterResource(id = R.drawable.chatgroup),
+					contentDescription = null,
+					modifier = Modifier
+						.size(50.dp)
+						.clip(CircleShape)
+						.border(2.dp, colorResource(id = R.color.md_purple_800), CircleShape),
+					contentScale = ContentScale.Crop // Asegura que la imagen abarque todo el círculo
+				)
+				Column(
+					modifier = Modifier
+						.weight(1f)
+						.padding(start = 8.dp)
+				) {
+					Text(
+						text = "Global Chat",
+						color = colorResource(id = R.color.md_pink_900),
+						style = TextStyle(
+							fontFamily = FontFamily(Font(R.font.signikaregular)),
+							fontSize = 20.sp,
+							fontWeight = FontWeight.Bold
+
+						),
 						modifier = Modifier
-							.clickable { friend.UUID!! }
-							.padding(top = 7.dp, bottom = 7.dp, start = 14.dp, end = 14.dp)
-							.fillMaxWidth()
-							.padding(8.dp),
-						verticalAlignment = Alignment.CenterVertically
-					) {
-//						Icon(
-//							imageVector = Icons.Default.Person,
-//							contentDescription = null,
-//							modifier = Modifier.size(40.dp)
-//						)
-						Image(
-							painter = painterResource(id = R.drawable.norma),
-							contentDescription = null,
-							modifier = Modifier
-								.size(50.dp)
-								.clip(CircleShape)
-						)
-						Column(
-							modifier = Modifier
-								.padding(start = 8.dp)
-						) {
-							Text(
-								text = friend.name.toString(),
-								color = Color.Black,
-								style = TextStyle(
-									fontFamily = FontFamily(Font(R.font.signikaregular)),
-									fontSize = 20.sp,
-									fontWeight = FontWeight.Bold
-								),
-								modifier = Modifier.padding(bottom = 3.dp)
+							.padding(bottom = 3.dp)
+					)
+					Text(
+						text = "Write something",
+						color = colorResource(id = R.color.md_pink_A200),
+						style = TextStyle(
+							fontFamily = FontFamily(Font(R.font.josefinsanslight)),
+							fontSize = 16.sp,
+							fontWeight = FontWeight.Bold,
+
 							)
-							Text(
-								text = friend.email.toString(),
-								color = Color.Black,
-								style = TextStyle(
-									fontFamily = FontFamily(Font(R.font.josefinsanslight)),
-									fontSize = 20.sp,
-									fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+					)
+				}
+				Icon(
+					imageVector = Icons.Default.MoreVert,
+					contentDescription = "More Options",
+					modifier = Modifier.padding(start = 8.dp),
+					tint = colorResource(id = R.color.md_purple_800)
+					// Cambia este color según tus necesidades
+				)
+			}
+			LazyColumn{
+				friends.forEach { friend ->
+					item {
+						Row(
+							modifier = Modifier
+								.clickable {
+									selectedFriend = friend.UUID!!
+									true
+								}
+								.padding(top = 7.dp, bottom = 7.dp, start = 14.dp, end = 14.dp)
+								.fillMaxWidth()
+								.padding(8.dp),
+							verticalAlignment = Alignment.CenterVertically
+						) {
+							Image(
+								painter = painterResource(id = R.drawable.imgprof),
+								contentDescription = null,
+								modifier = Modifier
+									.size(50.dp)
+									.clip(CircleShape)
+									.border(
+										2.dp,
+										colorResource(id = R.color.md_purple_800),
+										CircleShape
+									),
+								contentScale = ContentScale.Crop // Asegura que la imagen abarque todo el círculo
+							)
+							Column(
+								modifier = Modifier
+									.weight(1f)
+									.padding(start = 8.dp)
+							) {
+								Text(
+									text = friend.name.toString(),
+									color = colorResource(id = R.color.md_pink_900),
+									style = TextStyle(
+										fontFamily = FontFamily(Font(R.font.signikaregular)),
+										fontSize = 20.sp,
+										fontWeight = FontWeight.Bold
+
+									),
+									modifier = Modifier
+										.padding(bottom = 3.dp)
 								)
+								Text(
+									text = friend.email.toString(),
+									color = colorResource(id = R.color.md_pink_A200),
+									style = TextStyle(
+										fontFamily = FontFamily(Font(R.font.josefinsanslight)),
+										fontSize = 16.sp,
+										fontWeight = FontWeight.Bold,
+
+										)
+								)
+							}
+							Icon(
+								imageVector = Icons.Default.MoreVert,
+								contentDescription = "More Options",
+								modifier = Modifier.padding(start = 8.dp),
+								tint = colorResource(id = R.color.md_purple_800)
+								// Cambia este color según tus necesidades
 							)
 						}
 					}
 				}
 			}
 		}
+
 
 	}
 //

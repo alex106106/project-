@@ -1,5 +1,8 @@
 package com.example.savethem.util
 
+import android.content.Context
+import android.database.sqlite.SQLiteDatabase
+import android.database.sqlite.SQLiteOpenHelper
 import androidx.compose.material.darkColors
 import androidx.compose.material.lightColors
 import androidx.compose.runtime.getValue
@@ -21,6 +24,7 @@ class constants {
         const val CALL_SCREEN = "call_screen"
         const val CHAT_SCREEN = "chat_screen"
         const val TEST_SCREEN = "test_screen"
+        const val GLOBAL_CHAT_SCREEN = "global_chat_Screen"
 //        val messageID = UUID.randomUUID().toString()
         val time = System.currentTimeMillis()
     }
@@ -53,5 +57,45 @@ class constants {
             onBackground = Color.Black
         )
     }
+
+}
+class DatabaseHelper(context: Context): SQLiteOpenHelper(context, DATABASE_NAME, null, DATABASE_VERSION){
+    override fun onCreate(db: SQLiteDatabase?) {
+        db?.execSQL(CREATE_TABLE_USER)
+        db?.execSQL(CREATE_TABLE_FRIENDS)
+    }
+
+    override fun onUpgrade(db: SQLiteDatabase?, oldVersion: Int, newVersion: Int) {
+        db?.execSQL("DROP TABLE IF EXISTS users")
+        db?.execSQL("DROP TABLE IF EXISTS friends")
+        onCreate(db)
+    }
+    companion object tables{
+        private const val DATABASE_VERSION = 1
+        private const val DATABASE_NAME = "app_database.db"
+        private const val CREATE_TABLE_USER = """ 
+            CREATE TABLE users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
+        email TEXT,
+        UUID TEXT,
+        token TEXT
+            )
+        """
+
+        private const val CREATE_TABLE_FRIENDS = """
+            CREATE TABLE friends (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        friend_id INTEGER,
+        friend_name TEXT,
+        friend_email TEXT,
+        friend_UUID TEXT,
+        friend_token TEXT,
+        FOREIGN KEY(user_id) REFERENCES users(id)
+    )
+        """
+    }
+
 
 }

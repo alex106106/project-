@@ -20,6 +20,7 @@ import androidx.navigation.NavController
 import com.example.savethem.DAO.DAO
 import com.example.savethem.R
 import com.example.savethem.Repository.Repository
+import com.example.savethem.Repository.UserRepository
 import com.example.savethem.ViewModel.ChatViewModel
 import com.example.savethem.ViewModel.FriendsViewModel
 import com.example.savethem.call.enviar
@@ -33,7 +34,7 @@ class MyBackgroundService() : Service() {
 	override fun onCreate() {
 		super.onCreate()
 		createNotificationChannel()
-		friendsViewModel = FriendsViewModel(Repository(DAO()))
+		friendsViewModel = FriendsViewModel(Repository(DAO()), UserRepository(this))
 		friendsViewModel.getAllFriends()
 	}
 

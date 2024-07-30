@@ -101,6 +101,41 @@ fun loginScreen(loginViewModel: LoginViewModel, navController: NavController, co
                             modifier = Modifier
                                 .wrapContentHeight()
                         ) {
+                            Button(
+                                modifier = Modifier
+                                    .padding(top = 35.dp)
+                                    .align(CenterHorizontally),
+                                shape = RoundedCornerShape(20.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    backgroundColor = colorResource(id = R.color.md_grey_200),
+                                    contentColor = Color.Black,
+                                ),
+                                onClick = {
+                                    if (emailUser.isNotEmpty() && passUser.isNotEmpty()) {
+                                        loginViewModel.login(
+                                            registerModel = registerModel(
+                                                email = emailUser,
+                                                pass = passUser,
+                                                name = "",
+                                                UUID = ""
+                                            ),
+                                            navController = navController
+//                                        context = context.applicationContext
+                                        )
+                                    } else {
+                                        Toast.makeText(context, "Please enter email and password", Toast.LENGTH_SHORT).show()
+                                    }
+                                    println("********************************************************************" +
+                                            "*************************ERROR EN BUTTON LOGIN**************************" +
+                                            "********************************************************************")
+                                }
+                            ) {
+                                if (loginViewModel.isLoading.value) {
+                                    CircularProgressIndicator(color = Color.Black)
+                                } else {
+                                    Text("Login")
+                                }
+                            }
 
 //                        Card(
 //                            modifier = Modifier

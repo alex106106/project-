@@ -12,6 +12,7 @@ import com.example.savethem.ui.Screens.*
 import com.example.savethem.util.constants.Screens.CALL_SCREEN
 import com.example.savethem.util.constants.Screens.CHAT_SCREEN
 import com.example.savethem.util.constants.Screens.DETAILS_SCREEN
+import com.example.savethem.util.constants.Screens.GLOBAL_CHAT_SCREEN
 import com.example.savethem.util.constants.Screens.KEY_GAME_ID
 //import com.example.savethem.util.constants.Screens.KEY_USER_ID
 import com.example.savethem.util.constants.Screens.LOGIN_SCREEN
@@ -28,6 +29,7 @@ sealed class Screens(val route: String){
     object Register: Screens(route = REGISTER_SCREEN)
     object Chat: Screens(route = CHAT_SCREEN)
     object Test: Screens(route = TEST_SCREEN)
+    object GlobalChat: Screens(route = GLOBAL_CHAT_SCREEN)
 }
 @Composable
 fun SetupNavHost(
@@ -59,6 +61,9 @@ fun SetupNavHost(
         }
         composable(route = Screens.Test.route){
             test()
+        }
+        composable(route = Screens.GlobalChat.route){
+            GlobalChatMainScreen(chatViewModel = chatViewModel, navController = navHostController)
         }
 
     }

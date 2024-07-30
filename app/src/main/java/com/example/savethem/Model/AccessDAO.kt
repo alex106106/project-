@@ -17,6 +17,8 @@ interface AccessDAO {
     fun getLikes(commentId: String): LiveData<Pair<List<String>, Boolean>>
 //    Friends
     fun addFriend(addFriend: registerModel, idFriend: String)
+//    ADDFRIEND SQLITE
+    fun addFriendSQL(currentUser: Long, friend: registerModel): Long
     fun addFriendChat(addFriend: registerModel, uid: String)
     suspend fun getFriends(): List<registerModel>
     suspend fun getFriendById(id: String): registerModel?
@@ -27,7 +29,7 @@ interface AccessDAO {
     suspend fun getLocation(idUser: String, id: String): Flow<List<LocationModel>>
     fun addLocation2(addMessage: LocationModel, id: String, idUser: String, messageID: String): LiveData<LocationModel>
     suspend fun getLocationById(idUser: String, id: String, latitude: Double, longitude: Double, context: Context,
-                                token: String): LocationModel?
+                                token: String): Flow<List<LocationModel>>
     fun updateLocationById(location: LocationModel, id: String, idUser: String, messageID: String): LiveData<LocationModel>
     fun addMessage2(addMessage: ChatModel, id: String, idUser: String, messageID: String): LiveData<ChatModel>
     suspend fun getAllMessage(idUser: String, id:String): Flow<List<ChatModel>>

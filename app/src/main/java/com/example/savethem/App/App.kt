@@ -16,6 +16,5 @@ class App : Application() {
 	override fun onCreate() {
 		super.onCreate()
 		FirebaseApp.initializeApp(this)
-		val firebaseDatabase = FirebaseDatabase.getInstance()
-		firebaseDatabase.setPersistenceEnabled(true)	}
+		FirebaseDatabase.getInstance().setPersistenceEnabled(true)	}
 }

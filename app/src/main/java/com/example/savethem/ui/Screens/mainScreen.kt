@@ -1,5 +1,6 @@
 package com.example.savethem.ui.Screens
 
+import android.content.Context
 import android.graphics.BitmapFactory
 import android.location.Geocoder
 import android.location.Location
@@ -48,6 +49,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.savethem.Model.*
 import com.example.savethem.R
+import com.example.savethem.Repository.UserRepository
 import com.example.savethem.ViewModel.FriendsViewModel
 import com.example.savethem.ViewModel.mainViewModel
 import com.example.savethem.call.boton
@@ -106,7 +108,7 @@ fun list(viewModel: mainViewModel) {
             val geoCoder = Geocoder(context, Locale.getDefault())
             val addressList = geoCoder.getFromLocation(location.latitude, location.longitude, 1)
             if (addressList?.isNotEmpty()!!) {
-                stateName = addressList?.get(0).adminArea ?: ""
+                stateName = addressList?.get(0)!!.adminArea ?: ""
             }
         }
     }
@@ -200,7 +202,7 @@ fun MapView(viewModel: mainViewModel, navController: NavController) {
             val geoCoder = Geocoder(context, Locale.getDefault())
             val addressList = geoCoder.getFromLocation(location.latitude, location.longitude, 1)
             if (addressList?.isNotEmpty()!!) {
-                stateName = addressList?.get(0).adminArea ?: ""
+                stateName = addressList?.get(0)!!.adminArea ?: ""
             }
         }
     }
@@ -311,9 +313,20 @@ fun TopAppBar(friendsViewModel: FriendsViewModel) {
                             keyboardOptions = KeyboardOptions.Default.copy(imeAction = ImeAction.Done),
                             keyboardActions = KeyboardActions(
                                 onDone = {
+                                    val currentUserId = FirebaseAuth.getInstance().currentUser
                                     friendsViewModel.addFriend(registerModel(), searchText)
-                                    // Ocultar el teclado después de enviar el texto
+//                                    // Ocultar el teclado después de enviar el texto
                                     focusRequester.freeFocus()
+//                                    val friend = registerModel(
+//                                        searchText, // Debes manejar el ID correctamente
+//                                        name = "", // Deberías obtener el nombre y otros datos del amigo aquí
+//                                        UUID = "",
+//                                        token = ""
+//                                    )
+//                                    friendsViewModel.addFriend(1, friend)
+                                    focusRequester.freeFocus()
+                                    searchText = ""
+                                    isSearchExpanded = false
                                 }
                             )
                         )
@@ -323,16 +336,17 @@ fun TopAppBar(friendsViewModel: FriendsViewModel) {
                         modifier = Modifier.padding(start = 5.dp)
                     ) {
                         BasicText(
-                            text = "Norma",
+                            text = "WomenSafe",
                             style = TextStyle(
-                                fontFamily = FontFamily(Font(R.font.signikabold)),
-                                fontSize = 20.sp,
-                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                                fontFamily = FontFamily(Font(R.font.signikasemibold)),
+                                fontSize = 25.sp,
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                                color = colorResource(id = R.color.md_pink_50) // Cambia el color aquí
                             ),
                             modifier = Modifier
                                 .padding(5.dp)
                                 .graphicsLayer(
-                                    scaleX = 1.5f // Ajusta este valor para estirar más o menos horizontalmente
+                                    scaleX = 1.1f // Ajusta este valor para estirar más o menos horizontalmente
                                 )
                         )
                     }
@@ -352,14 +366,14 @@ fun TopAppBar(friendsViewModel: FriendsViewModel) {
                     Icon(
                         imageVector = if (isSearchExpanded) Icons.Default.Close else Icons.Default.Search,
                         contentDescription = "Search",
-                        tint = Color.Black
+                        tint = colorResource(id = R.color.md_purple_800)
                     )
                 }
                 IconButton(onClick = { expandedMenu = true }) {
                     Icon(
                         imageVector = Icons.Default.MoreVert,
                         contentDescription = "",
-                    tint = Color.Black
+                    tint = colorResource(id = R.color.md_purple_800)
                     )
                     DropdownMenu(
                         expanded = expandedMenu,
@@ -407,7 +421,7 @@ fun TopAppBar(friendsViewModel: FriendsViewModel) {
             }
         },
         modifier = Modifier.height(52.dp),
-        backgroundColor = colorResource(id = R.color.md_pink_A200),
+        backgroundColor = colorResource(id = R.color.md_purple_200),
         elevation = 0.dp
     )
 }
@@ -479,7 +493,7 @@ fun BottomNavigationBar(navController: NavController) {
                 selectedItem = 0
                 // Navegar a la pantalla de inicio
             },
-            selectedContentColor = colorResource(id = R.color.md_pink_A700),
+            selectedContentColor = colorResource(id = R.color.md_purple_800),
             unselectedContentColor = Color.Gray
         )
         BottomNavigationItem(
@@ -490,7 +504,7 @@ fun BottomNavigationBar(navController: NavController) {
                 selectedItem = 2
                 // Navegar a la pantalla de perfil
             },
-            selectedContentColor = colorResource(id = R.color.md_pink_A700),
+            selectedContentColor = colorResource(id = R.color.md_purple_800),
             unselectedContentColor = Color.Gray
         )
     }

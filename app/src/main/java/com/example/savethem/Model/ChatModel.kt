@@ -10,12 +10,22 @@ import com.google.android.gms.maps.model.LatLng
 //}
 
 data class ChatModel(
-	var IDMessage: String? = "",
-	var UUIDSender: String? = "",
-	var message: String? = "",
-//	var location: LatLngWrapper = LatLngWrapper(),
-	var timestamp: Long? = 0
-)
+	var IDMessage: String = "",
+	var UUIDSender: String = "",
+	var message: String = "",
+	var timestamp: Long = 0L,
+	var seen: Boolean = false
+) {
+	fun toMap(): Map<String, Any?> {
+		return mapOf(
+			"IDMessage" to IDMessage,
+			"UUIDSender" to UUIDSender,
+			"message" to message,
+			"timestamp" to timestamp
+		)
+	}
+}
+
 data class ChatLocationModel(
 	var IDMessage: String? = "",
 	var UUIDSender: String? = "",

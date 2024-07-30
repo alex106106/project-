@@ -16,16 +16,20 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.example.savethem.Model.registerModel
 import com.example.savethem.ViewModel.RegisterViewModel
 
 @Composable
-fun RegisterScreen(registerViewModel: RegisterViewModel, navController: NavController) {
+fun RegisterScreen(registerViewModel: RegisterViewModel = viewModel(), navController: NavController) {
     var name by remember { mutableStateOf("Niko Junior") }
     var emailUser by remember { mutableStateOf("alexisgalindo106@gmail.com") }
     var passUser by remember { mutableStateOf("juniorniko106") }
     var confirmPass by remember { mutableStateOf("juniorniko106") }
+
+    // Observa el usuario registrado
+    val registeredUser by registerViewModel.registeredUser.observeAsState()
 
     Box(
         contentAlignment = Alignment.Center,
@@ -36,7 +40,7 @@ fun RegisterScreen(registerViewModel: RegisterViewModel, navController: NavContr
             contentDescription = "Background Image",
             contentScale = ContentScale.FillBounds,
             modifier = Modifier.fillMaxSize()
-        )
+        )   
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -91,6 +95,7 @@ fun RegisterScreen(registerViewModel: RegisterViewModel, navController: NavContr
                         contentColor = Color.White // Cambia el color del contenido del botón (texto/icono)
                     ),
                     onClick = {
+
                         registerViewModel.registerUser(
                             registerModel = registerModel(
                                 email = emailUser,
@@ -102,8 +107,14 @@ fun RegisterScreen(registerViewModel: RegisterViewModel, navController: NavContr
                 ) {
                     Text("Register")
                 }
+
+                // Mostrar los datos del usuario registrado
+                registeredUser?.let { user ->
+                    Text("Registered User: ${user.UUID}", modifier = Modifier.padding(top = 10.dp))
+                    Text("Registered User: ${user.name}", modifier = Modifier.padding(top = 10.dp))
+                    Text("Email: ${user.email}", modifier = Modifier.padding(top = 5.dp))
+                }
             }
         }
     }
-
 }
