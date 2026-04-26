@@ -25,6 +25,7 @@ class constants {
         const val CHAT_SCREEN = "chat_screen"
         const val TEST_SCREEN = "test_screen"
         const val GLOBAL_CHAT_SCREEN = "global_chat_Screen"
+        const val PROFILE_SCREEN = "profile_screen"
 //        val messageID = UUID.randomUUID().toString()
         val time = System.currentTimeMillis()
     }

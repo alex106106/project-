@@ -5,28 +5,41 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import android.content.Context
 import com.example.savethem.DAO.UserDao
-import com.example.savethem.Model.FriendEntity
-import com.example.savethem.Model.UserEntity
+import com.example.savethem.DAO.ChatDao
+import com.example.savethem.DAO.NoteDao
+import com.example.savethem.Model.*
 
-@Database(entities = [UserEntity::class, FriendEntity::class], version = 2)
+@Database(
+    entities = [
+        UserEntity::class, 
+        FriendEntity::class, 
+        ChatEntity::class, 
+        LocationEntity::class, 
+        NoteEntity::class,
+        MapStateEntity::class // Añadida nueva entidad
+    ], 
+    version = 4, // Subimos versión para el estado del mapa
+    exportSchema = false
+)
 abstract class UserDatabase : RoomDatabase() {
-	abstract fun userDao(): UserDao
+    abstract fun userDao(): UserDao
+    abstract fun chatDao(): ChatDao
+    abstract fun noteDao(): NoteDao
 
-	companion object {
-		@Volatile
-		private var INSTANCE: UserDatabase? = null
+    companion object {
+        @Volatile
+        private var INSTANCE: UserDatabase? = null
 
-		fun getDatabase(context: Context): UserDatabase {
-			return INSTANCE ?: synchronized(this) {
-				val instance = Room.databaseBuilder(
-					context.applicationContext,
-					UserDatabase::class.java,
-					"user_database"
-				).fallbackToDestructiveMigration().build()
-				INSTANCE = instance
-				instance
-			}
-		}
-	}
+        fun getDatabase(context: Context): UserDatabase {
+            return INSTANCE ?: synchronized(this) {
+                val instance = Room.databaseBuilder(
+                    context.applicationContext,
+                    UserDatabase::class.java,
+                    "user_database"
+                ).fallbackToDestructiveMigration().build()
+                INSTANCE = instance
+                instance
+            }
+        }
+    }
 }
-

@@ -5,7 +5,8 @@ data class registerModel (
     var pass: String? = "",
     var name: String? = "",
     var UUID: String? = "",
-    var token: String? = ""
+    var token: String? = "",
+    var profilePic: String? = ""
 ){
-    constructor() : this("", "", "", "", "")
+    constructor() : this("", "", "", "", "", "")
 }

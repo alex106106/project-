@@ -8,7 +8,6 @@ import com.example.savethem.DAO.DAO
 import com.example.savethem.Model.*
 import com.google.firebase.database.*
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
 import javax.inject.Inject
 
 class Repository @Inject constructor(val DAO: DAO) {
@@ -39,29 +38,19 @@ class Repository @Inject constructor(val DAO: DAO) {
         val senderChatRef = FirebaseDatabase.getInstance().getReference("users").child(id).child("chats").child(idUser).child(messageID)
         val receiverChatRef = FirebaseDatabase.getInstance().getReference("users").child(idUser).child("chats").child(id).child(messageID)
 
-        // Marcamos el mensaje como visto y actualizamos el timestamp
         val updates = hashMapOf(
             "seen" to true,
             "seenTimestamp" to ServerValue.TIMESTAMP
         )
 
-        // Ejecutamos las actualizaciones atómicamente
         centralMessageRef.updateChildren(updates).addOnSuccessListener {
             senderChatRef.updateChildren(updates).addOnSuccessListener {
                 receiverChatRef.updateChildren(updates).addOnSuccessListener {
                     Log.d("DAO", "Message marked as seen")
-                }.addOnFailureListener {
-                    Log.e("DAO", "Failed to mark message as seen in receiver's chat: ${it.message}")
                 }
-            }.addOnFailureListener {
-                Log.e("DAO", "Failed to mark message as seen in sender's chat: ${it.message}")
             }
-        }.addOnFailureListener {
-            Log.e("DAO", "Failed to mark message as seen: ${it.message}")
         }
     }
-
-
 
     fun addLike(commentId: String, userId: String, liked: Boolean): LiveData<Boolean> {
         val result = MutableLiveData<Boolean>()
@@ -86,22 +75,32 @@ class Repository @Inject constructor(val DAO: DAO) {
         return DAO.addFriend(addFriend,idFriend)
     }
 
+    suspend fun addFriendWithValidation(friendEmail: String): Boolean {
+        return DAO.addFriendWithValidation(friendEmail)
+    }
+
     fun addFriendChat(addFriend: registerModel, uid: String){
         return DAO.addFriendChat(addFriend, uid)
     }
-    suspend fun getFriends(): List<registerModel>{
+    
+    fun getFriends(): Flow<List<registerModel>> {
         return DAO.getFriends()
     }
-    suspend fun getFriendById(id: String): registerModel?{
+
+    suspend fun getFriendsListOnce(): List<registerModel> {
+        return DAO.getFriendsListOnce()
+    }
+    
+    suspend fun getFriendById(id: String): registerModel? {
         return DAO.getFriendById(id)
     }
-    suspend fun getFriendData(idFriend: String): registerModel?{
+    suspend fun getFriendData(idFriend: String): registerModel? {
         return DAO.getFriendData(idFriend)
     }
     suspend fun getUserDataUpdate(idUser: String, id: String, token: String): registerModel? {
         return DAO.getUserDataUpdate(idUser, id, token)
     }
-        fun addMessage(addMessage: ChatModel, id: String, messageID: String): LiveData<ChatModel>{
+    fun addMessage(addMessage: ChatModel, id: String, messageID: String): LiveData<ChatModel>{
         return DAO.addMessage(addMessage, id, messageID)
     }
     fun addLocation(addMessage: LocationModel, id: String, messageID: String): LiveData<LocationModel>{
@@ -110,8 +109,8 @@ class Repository @Inject constructor(val DAO: DAO) {
     fun addLocation2(addMessage: LocationModel, id: String, idUser: String, messageID: String): LiveData<LocationModel>{
         return DAO.addLocation2(addMessage, id, idUser, messageID)
     }
-    fun updateLocation(addMessage: LocationModel, id: String, idUser: String, messageID: String): LiveData<LocationModel>{
-        return DAO.updateLocationById(addMessage, id, idUser, messageID)
+    fun updateLocation(addMessage: LocationModel, id: String, idUser: String, messageId: String): LiveData<LocationModel>{
+        return DAO.updateLocationById(addMessage, id, idUser, messageId)
     }
     suspend fun getLocationById(idUser: String, id: String, latitude: Double, longitude: Double, context: Context,
                                 token: String):Flow<List<LocationModel>>{
@@ -123,48 +122,60 @@ class Repository @Inject constructor(val DAO: DAO) {
     fun addMessage2(addMessage: ChatModel, id: String, idUser: String, messageID: String): LiveData<ChatModel>{
         return DAO.addMessage2(addMessage, id, idUser, messageID)
     }
+
+    suspend fun sendMessage(
+        message: ChatModel,
+        receiverId: String
+    ) {
+        DAO.sendMessage(message, receiverId)
+    }
+
     suspend fun getAllMessage(idUser: String,id: String): Flow<List<ChatModel>> {
         return DAO.getAllMessage(idUser,id)
     }
+    suspend fun listenMessages(
+        idUser: String,
+        chatId: String
+    ): Flow<List<ChatModel>> {
+        return DAO.listenMessages(idUser, chatId)
+    }
+
     suspend fun getAllMessage2(id: String, idUser: String): List<ChatModel>{
         return DAO.getAllMessage2(id, idUser = idUser)
     }
 
+    // Safety Alerts
+    suspend fun reportSafetyAlert(alert: SafetyAlertModel) {
+        DAO.reportSafetyAlert(alert)
+    }
 
+    fun getSafetyAlerts(): Flow<List<SafetyAlertModel>> {
+        return DAO.getSafetyAlerts()
+    }
 
+    // Emergency
+    suspend fun startEmergency(emergency: EmergencyModel) {
+        DAO.startEmergency(emergency)
+    }
 
+    suspend fun stopEmergency(userId: String) {
+        DAO.stopEmergency(userId)
+    }
 
-//    fun addLike(commentId: String, userId: String, liked: Boolean): LiveData<Boolean> {
-//        val result = MutableLiveData<Boolean>()
-//        val commentRef = FirebaseDatabase.getInstance().getReference("place/comments/$commentId")
-//        commentRef.child("likes").child(userId).setValue(liked)
-//            .addOnSuccessListener {
-//                // obtener el valor actualizado de likes
-//                commentRef.child("likes")
-//                    .addListenerForSingleValueEvent(object : ValueEventListener {
-//                        override fun onDataChange(snapshot: DataSnapshot) {
-//                            // verificar si el comentario tiene likes
-//                            val likes = snapshot.children.mapNotNull { it.value as? Boolean }
-//                            result.value = likes.contains(true)
-//                        }
-//
-//                        override fun onCancelled(error: DatabaseError) {
-//                            result.value = false
-//                        }
-//                    })
-//            }.addOnFailureListener {
-//                result.value = false
-//            }
-//        return result
-//    }
+    fun getActiveEmergencies(): Flow<List<EmergencyModel>> {
+        return DAO.getActiveEmergencies()
+    }
 
+    // Safe Places
+    suspend fun addSafePlace(safePlace: SafePlaceModel) {
+        DAO.addSafePlace(safePlace)
+    }
 
+    fun getSafePlaces(): Flow<List<SafePlaceModel>> {
+        return DAO.getSafePlaces()
+    }
 
-
-
-
-
-
-
-
+    suspend fun getSafePlacesOnce(): List<SafePlaceModel> {
+        return DAO.getSafePlacesOnce()
+    }
 }

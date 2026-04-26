@@ -1,73 +1,83 @@
 package com.example.savethem.notification
 
-import android.R
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
 import android.os.Build
-import android.widget.Toast
+import android.util.Log
 import androidx.core.app.NotificationCompat
+import com.example.savethem.R
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.messaging.FirebaseMessagingService
 import com.google.firebase.messaging.RemoteMessage
 import java.util.*
 
-
 class Notification : FirebaseMessagingService() {
-	override fun onMessageReceived(message: RemoteMessage) {
-		super.onMessageReceived(message)
-		val title = message.data["titulo"]
-		val body = message.data["detalle"]
-		val iconName = message.data["icon"]
 
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-			mayorqueoreo(title, body, iconName)
-		} else {
-			menorqueoreo(title, body, iconName)
-		}
-	}
+    override fun onNewToken(token: String) {
+        super.onNewToken(token)
+        Log.d("FCM", "Nuevo token generado: $token")
+        updateTokenInFirebase(token)
+    }
 
-	private fun menorqueoreo(titulo: String?, detalle: String?, iconName: String?) {
-		val id = "Mensaje"
-		val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    private fun updateTokenInFirebase(token: String) {
+        val uid = FirebaseAuth.getInstance().currentUser?.uid
+        if (uid != null) {
+            val ref = FirebaseDatabase.getInstance().getReference("users/$uid/userData/token")
+            ref.setValue(token).addOnSuccessListener {
+                Log.d("FCM", "Token actualizado en la base de datos")
+            }
+        }
+    }
 
-		val resourceId = resources.getIdentifier(iconName, "drawable", packageName)
-		val builder = NotificationCompat.Builder(this, id)
+    override fun onMessageReceived(message: RemoteMessage) {
+        // No llamar a super.onMessageReceived(message) para evitar comportamientos duplicados
+        
+        Log.d("FCM", "Mensaje recibido de: ${message.from}")
 
-		builder.setAutoCancel(true)
-			.setWhen(System.currentTimeMillis())
-			.setContentTitle(titulo)
-			.setSmallIcon(resourceId) // Usar el resource ID
-			.setContentText(detalle)
-			.setContentInfo("nuevo")
+        // Extraer datos tanto de 'notification' como de 'data'
+        val title = message.notification?.title ?: message.data["titulo"] ?: "Nuevo Mensaje"
+        val body = message.notification?.body ?: message.data["detalle"] ?: "Has recibido un mensaje"
+        val iconName = message.data["icon"] ?: "norma"
 
-		val random = Random()
-		val idNotify: Int = random.nextInt(8000)
-		nm.notify(idNotify, builder.build())
-	}
+        showNotification(title, body, iconName)
+    }
 
-	private fun mayorqueoreo(titulo: String?, detalle: String?, iconName: String?) {
-		val id = "Mensaje"
-		val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+    private fun showNotification(titulo: String?, detalle: String?, iconName: String?) {
+        val channelId = "Mensaje" // Este ID debe coincidir con el enviado en FcmUtil
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-		val resourceId = resources.getIdentifier(iconName, "drawable", packageName)
-		val builder = NotificationCompat.Builder(this, id)
+        // Crear el canal para Android 8.0+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channelName = "Notificaciones de Chat"
+            val importance = NotificationManager.IMPORTANCE_HIGH
+            val channel = NotificationChannel(channelId, channelName, importance).apply {
+                description = "Canal para alertas y mensajes de SaveThem"
+                enableLights(true)
+                enableVibration(true)
+            }
+            nm.createNotificationChannel(channel)
+        }
 
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-			val nc = NotificationChannel(id, "nuevo", NotificationManager.IMPORTANCE_HIGH)
-			nc.setShowBadge(true)
-			nm.createNotificationChannel(nc)
-		}
+        // Obtener el recurso del icono
+        val resourceId = if (!iconName.isNullOrEmpty()) {
+            val id = resources.getIdentifier(iconName, "drawable", packageName)
+            if (id != 0) id else R.drawable.otro
+        } else {
+            R.drawable.otro
+        }
 
-		builder.setAutoCancel(true)
-			.setWhen(System.currentTimeMillis())
-			.setContentTitle(titulo)
-			.setSmallIcon(resourceId) // Usar el resource ID
-			.setContentText(detalle)
-			.setContentInfo("nuevo")
+        val builder = NotificationCompat.Builder(this, channelId)
+            .setSmallIcon(resourceId)
+            .setContentTitle(titulo)
+            .setContentText(detalle)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setWhen(System.currentTimeMillis())
 
-		val random = Random()
-		val idNotify: Int = random.nextInt(8000)
-		nm.notify(idNotify, builder.build())
-	}
+        val idNotify = Random().nextInt(8000)
+        nm.notify(idNotify, builder.build())
+    }
 }
-

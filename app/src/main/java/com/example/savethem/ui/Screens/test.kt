@@ -16,7 +16,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.example.savethem.ViewModel.FriendsViewModel
-import com.example.savethem.call.enviar
+import com.example.savethem.call.enviarNotificacionV1
 import com.example.savethem.service.MyBackgroundService
 
 @Composable
@@ -55,7 +55,7 @@ fun tests(friendsViewModel: FriendsViewModel, navController: NavController) {
 			friends.forEach { friend ->
 				friend.token?.let { token ->
 					if (token.isNotEmpty()) {
-						enviar(context = context, token = token)
+						enviarNotificacionV1(context = context, token = token, titulo = "Test V1", mensaje = "Probando FCM V1")
 					} else {
 						Log.e("FCM_ERROR", "Token is empty for friend: ${friend.name}")
 					}

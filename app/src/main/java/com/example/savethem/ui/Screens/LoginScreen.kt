@@ -1,319 +1,185 @@
 package com.example.savethem.ui.Screens
 
+import android.app.Activity
 import android.content.Context
-import android.widget.Toast
+import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.Alignment.Companion.CenterHorizontally
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.colorResource
-import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.graphics.blue
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
-import com.example.savethem.Model.registerModel
 import com.example.savethem.R
 import com.example.savethem.ViewModel.LoginViewModel
+import com.example.savethem.ViewModel.RegisterViewModel
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.android.gms.common.api.ApiException
 
-//todo crea un archivo en la carpeta screens da click derecho/new/kotlin class/file/ pones el nombre WearScreen, copias completo este login screen y lo pegas en el archivo que acabas de crear en vez de loginScreen le pones WearScreen
 @Composable
 fun loginScreen(loginViewModel: LoginViewModel, navController: NavController, context: Context) {
-    var emailUser by remember { mutableStateOf("alexisgalindo106@gmail.com") }
-    var passUser by remember { mutableStateOf("juniorniko106") }
-    var confirmPass by remember { mutableStateOf("juniorniko106") }
+    val registerViewModel: RegisterViewModel = viewModel()
     val isUserLoggedIn = loginViewModel.isUserLoggedIn
-    val context = LocalContext.current
-    val isWearable = remember { isWearable(context) }
-//@Composable
-//fun AppContent() {
-//	val context = LocalContext.current
-//	val isWearable = remember { isWearable(context) }
-//
-//	if (isWearable) {
-//		test()
-//	} else {
-//		SmartphoneScreen()
-//	}
-//}
+    val currentContext = LocalContext.current
+    val isWearable = remember { isWearable(currentContext) }
+
+    // OBTENCIÓN AUTOMÁTICA DEL WEB CLIENT ID DESDE GOOGLE SERVICES
+    val webClientId = remember {
+        val resourceId = currentContext.resources.getIdentifier("default_web_client_id", "string", currentContext.packageName)
+        if (resourceId != 0) {
+            currentContext.getString(resourceId)
+        } else {
+            // ID DE RESPALDO MANUAL (Asegúrate de cambiar este por el tuyo si falla)
+            "419233537452-4vduhkq4bj7k7bm45e9fhfjiohjqvive.apps.googleusercontent.com"
+        }
+    }
+
+    val gso = remember(webClientId) {
+        GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(webClientId)
+            .requestEmail()
+            .build()
+    }
+    
+    val googleSignInClient = remember(gso) { GoogleSignIn.getClient(currentContext, gso) }
+
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+            try {
+                val account = task.getResult(ApiException::class.java)
+                account.idToken?.let { idToken ->
+                    registerViewModel.registerWithGoogle(idToken) {
+                        navController.navigate("main_screen") {
+                            popUpTo("login_screen") { inclusive = true }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("GoogleSignIn", "Error en autenticación: ${e.message}")
+            }
+        } else {
+            Log.e("GoogleSignIn", "Result code: ${result.resultCode}. Revisa SHA-1 en Firebase.")
+        }
+    }
+
     LaunchedEffect(isUserLoggedIn.value) {
         if (isUserLoggedIn.value == true) {
-            if (isWearable){
-                navController.navigate("test_screen") {
-                    popUpTo("login_screen") { inclusive = true }
-                }
-            }else{
-                navController.navigate("main_screen") {
-                    popUpTo("login_screen") { inclusive = true }
-                }
-            }
-
-        }
-    }
-
-    when(isUserLoggedIn.value){
-        null-> LoadingScreen()
-        false->{
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(colorResource(id = R.color.md_amber_50))
-            ) {
-
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .wrapContentHeight()
-                            .padding(top = 60.dp, bottom = 20.dp, end = 30.dp, start = 30.dp),
-                        elevation = 18.dp,
-                        shape = RoundedCornerShape(120.dp),
-                        backgroundColor = colorResource(id = R.color.md_amber_50)
-                    ) {
-                        Image(
-                            painter = painterResource(
-                                id = R.drawable.norma),
-                            contentDescription = "")
-                    }
-
-
-                    Box(
-                        contentAlignment = Alignment.Center,
-                        modifier = Modifier.fillMaxSize()
-
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .wrapContentHeight()
-                        ) {
-                            Button(
-                                modifier = Modifier
-                                    .padding(top = 35.dp)
-                                    .align(CenterHorizontally),
-                                shape = RoundedCornerShape(20.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    backgroundColor = colorResource(id = R.color.md_grey_200),
-                                    contentColor = Color.Black,
-                                ),
-                                onClick = {
-                                    if (emailUser.isNotEmpty() && passUser.isNotEmpty()) {
-                                        loginViewModel.login(
-                                            registerModel = registerModel(
-                                                email = emailUser,
-                                                pass = passUser,
-                                                name = "",
-                                                UUID = ""
-                                            ),
-                                            navController = navController
-//                                        context = context.applicationContext
-                                        )
-                                    } else {
-                                        Toast.makeText(context, "Please enter email and password", Toast.LENGTH_SHORT).show()
-                                    }
-                                    println("********************************************************************" +
-                                            "*************************ERROR EN BUTTON LOGIN**************************" +
-                                            "********************************************************************")
-                                }
-                            ) {
-                                if (loginViewModel.isLoading.value) {
-                                    CircularProgressIndicator(color = Color.Black)
-                                } else {
-                                    Text("Login")
-                                }
-                            }
-
-//                        Card(
-//                            modifier = Modifier
-//                                .padding(15.dp),
-//                            shape = RoundedCornerShape(25.dp),
-//                            elevation = 10.dp
-//
-//                        ) {
-                            OutlinedTextField(
-                                modifier = Modifier
-                                    .padding(15.dp, top = 100.dp),
-//                                    .background(
-//                                        colorResource(id = R.color.md_grey_200),
-//                                        shape = RoundedCornerShape(25.dp)
-//                                    ),
-                                value = emailUser,
-                                shape = RoundedCornerShape(25.dp),
-                                onValueChange = { emailUser = it },
-                                label = { Text(text = stringResource(id = R.string.email)) },
-                            )
-//                        }
-
-
-//                        Card(
-//                            modifier = Modifier
-//                                .padding(15.dp),
-//                            shape = RoundedCornerShape(25.dp),
-//                            elevation = 10.dp
-//
-//                        ) {
-                            OutlinedTextField(
-//                                modifier = Modifier
-//                                    .background(
-//                                        colorResource(id = R.color.md_grey_200),
-//                                        shape = RoundedCornerShape(25.dp)),
-                                modifier = Modifier
-                                    .padding(15.dp),
-                                value = passUser,
-                                shape = RoundedCornerShape(25.dp),
-                                onValueChange = { passUser = it },
-                                label = { Text(
-                                    text = stringResource(id = R.string.password)) },
-                                visualTransformation = PasswordVisualTransformation()
-                            )
-//                        }
-
-
-//                        Card(
-//                            modifier = Modifier
-//                                .padding(15.dp),
-//                            shape = RoundedCornerShape(25.dp),
-//                            elevation = 10.dp
-//
-//                        ) {
-                            OutlinedTextField(
-                                modifier = Modifier
-                                    .padding(15.dp),
-//                                    .background(
-//                                        colorResource(id = R.color.md_grey_200),
-//                                        shape = RoundedCornerShape(25.dp)
-//                                    ),
-                                value = confirmPass,
-                                shape = RoundedCornerShape(25.dp),
-                                onValueChange = { confirmPass = it },
-                                label = { Text("Confirm Password") },
-                                visualTransformation = PasswordVisualTransformation()
-                            )
-//                        }
-
-
-
-
-//                            Button(
-//                                modifier = Modifier
-//                                    .padding(bottom = 15.dp)
-//                                    .align(CenterHorizontally),
-//                                shape = RoundedCornerShape(20.dp),
-//                                colors = ButtonDefaults.buttonColors(
-//                                    backgroundColor = colorResource(id = R.color.md_grey_200),
-//                                    contentColor = Color.Black,
-//                                ),
-//                                onClick = {
-//                                    if (emailUser.isNotEmpty() && passUser.isNotEmpty()) {
-//                                        loginViewModel.login(
-//                                            registerModel = registerModel(
-//                                                email = emailUser,
-//                                                pass = passUser,
-//                                                name = "",
-//                                                UUID = ""
-//                                            ),
-//                                            navController = navController
-////                                        context = context.applicationContext
-//                                        )
-//                                    } else {
-//                                        Toast.makeText(context, "Please enter email and password", Toast.LENGTH_SHORT).show()
-//                                    }
-//                                    println("********************************************************************" +
-//                                            "*************************ERROR EN BUTTON LOGIN**************************" +
-//                                            "********************************************************************")
-//                                }
-//                            ) {
-//                                if (loginViewModel.isLoading.value) {
-//                                    CircularProgressIndicator(color = Color.Black)
-//                                } else {
-//                                    Text("Login")
-//                                }
-//                            }
-
-                            ClickableText(
-                                modifier = Modifier
-//                            .padding(15.dp)
-                                    .align(CenterHorizontally),
-                                style = TextStyle(color = Color.Black, fontSize = 10.sp),
-                                text = AnnotatedString("Don't have an account? Register"),
-                                onClick = {
-                                    loginViewModel.navigateToRegister(navController)
-                                }
-                            )
-//                            Column() {
-                                Button(
-                                    modifier = Modifier
-                                        .padding(top = 35.dp)
-                                        .align(CenterHorizontally),
-                                    shape = RoundedCornerShape(20.dp),
-                                    colors = ButtonDefaults.buttonColors(
-                                        backgroundColor = colorResource(id = R.color.md_grey_200),
-                                        contentColor = Color.Black,
-                                    ),
-                                    onClick = {
-                                        if (emailUser.isNotEmpty() && passUser.isNotEmpty()) {
-                                            loginViewModel.login(
-                                                registerModel = registerModel(
-                                                    email = emailUser,
-                                                    pass = passUser,
-                                                    name = "",
-                                                    UUID = ""
-                                                ),
-                                                navController = navController
-//                                        context = context.applicationContext
-                                            )
-                                        } else {
-                                            Toast.makeText(context, "Please enter email and password", Toast.LENGTH_SHORT).show()
-                                        }
-                                        println("********************************************************************" +
-                                                "*************************ERROR EN BUTTON LOGIN**************************" +
-                                                "********************************************************************")
-                                    }
-                                ) {
-                                    if (loginViewModel.isLoading.value) {
-                                        CircularProgressIndicator(color = Color.Black)
-                                    } else {
-                                        Text("Login")
-                                    }
-                                }
-
-                    }
-                }
+            val destination = if (isWearable) "test_screen" else "main_screen"
+            navController.navigate(destination) {
+                popUpTo("login_screen") { inclusive = true }
             }
         }
-        true -> {}
     }
-}
 
-
-@Composable
-fun LoadingScreen(){
-    Box(contentAlignment = Alignment.Center,
-        modifier = Modifier.fillMaxSize()) {
-        CircularProgressIndicator()
-    }
-}
-
-@Composable
-fun WearableScreens() {
     Box(
-        modifier = Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
+        modifier = Modifier
+            .fillMaxSize()
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        colorResource(id = R.color.md_purple_700),
+                        colorResource(id = R.color.md_purple_400)
+                    )
+                )
+            )
     ) {
-        Text(text = "This is a Wearable device")
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 30.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Surface(
+                modifier = Modifier
+                    .size(180.dp)
+                    .clip(CircleShape),
+                color = Color.White.copy(alpha = 0.2f)
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.otro),
+                    contentDescription = "Logo",
+                    modifier = Modifier.padding(30.dp),
+                    contentScale = ContentScale.Fit
+                )
+            }
+
+            Spacer(modifier = Modifier.height(40.dp))
+
+            Text(
+                text = "WomenSafe",
+                style = MaterialTheme.typography.h3,
+                color = Color.White,
+                fontWeight = FontWeight.ExtraBold
+            )
+            Text(
+                text = "Personal Safety & Connection",
+                style = MaterialTheme.typography.body1,
+                color = Color.White.copy(alpha = 0.8f),
+                modifier = Modifier.padding(top = 8.dp)
+            )
+
+            Spacer(modifier = Modifier.height(80.dp))
+
+            Button(
+                onClick = { 
+                    googleSignInClient.signOut().addOnCompleteListener {
+                        launcher.launch(googleSignInClient.signInIntent)
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(60.dp),
+                shape = RoundedCornerShape(30.dp),
+                colors = ButtonDefaults.buttonColors(
+                    backgroundColor = Color.White,
+                    contentColor = colorResource(id = R.color.md_purple_800)
+                ),
+                elevation = ButtonDefaults.elevation(defaultElevation = 12.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Image(
+                        painter = painterResource(id = R.drawable.otro),
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Text(
+                        "CONTINUE WITH GOOGLE", 
+                        fontSize = 16.sp, 
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(40.dp))
+            
+            Text(
+                text = "By continuing you agree to our Terms of Service",
+                style = MaterialTheme.typography.caption,
+                color = Color.White.copy(alpha = 0.6f),
+                textAlign = TextAlign.Center
+            )
+        }
     }
 }

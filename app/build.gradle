@@ -4,7 +4,6 @@ plugins {
     id 'dagger.hilt.android.plugin'
     id 'com.google.gms.google-services'
     id 'kotlin-kapt'
-
 }
 
 android {
@@ -13,7 +12,7 @@ android {
 
     defaultConfig {
         applicationId "com.example.savethem"
-        minSdk 21
+        minSdk 24
         targetSdk 34
         versionCode 1
         versionName "1.0"
@@ -31,104 +30,83 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
     }
     kotlinOptions {
-        jvmTarget = '1.8'
+        jvmTarget = '17'
     }
     buildFeatures {
         compose true
     }
     composeOptions {
-        kotlinCompilerExtensionVersion '1.4.0'
+        kotlinCompilerExtensionVersion '1.5.8'
     }
-    packagingOptions {
+    packaging {
         resources {
             excludes += '/META-INF/{AL2.0,LGPL2.1}'
+            // Necesario para evitar conflictos con la librería de Google Auth
+            excludes += 'META-INF/DEPENDENCIES'
         }
     }
 }
 
 dependencies {
-//    Firebase
-    implementation platform('com.google.firebase:firebase-bom:31.2.2')
+    implementation platform('com.google.firebase:firebase-bom:33.1.2')
     implementation 'com.google.firebase:firebase-analytics-ktx'
-    implementation 'com.google.firebase:firebase-auth:20.0.1'
+    implementation 'com.google.firebase:firebase-auth-ktx'
     implementation 'com.google.firebase:firebase-database-ktx'
     implementation 'com.google.firebase:firebase-firestore-ktx'
+    implementation 'com.google.firebase:firebase-messaging-ktx'
 
-    implementation 'com.google.android.gms:play-services-auth:19.2.0'
-//    implementation 'androidx.activity:activity-ktx:1.7.0'
+    // Librería para generar el Token de Acceso (OAuth2)
+    implementation 'com.google.auth:google-auth-library-oauth2-http:1.19.0'
 
-//    graph
+    implementation 'com.google.android.gms:play-services-auth:20.6.0'
+
     implementation "com.github.tehras:charts:0.2.4-alpha"
-    // ViewModel
-    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.5.1'
-    implementation "androidx.lifecycle:lifecycle-viewmodel-compose:2.5.1"
-    // LiveData
-    implementation "androidx.compose.runtime:runtime-livedata:1.4.0-alpha04"
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.1'
+    implementation "androidx.lifecycle:lifecycle-viewmodel-compose:2.6.1"
+    implementation "androidx.compose.runtime:runtime-livedata:1.6.1"
 
-//    Maps
-    implementation 'com.google.maps.android:maps-compose:2.8.0'
+    implementation 'com.google.maps.android:maps-compose:2.11.4'
     implementation 'com.google.android.gms:play-services-maps:18.1.0'
-
-    // Retrofit2
-    implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
-
-    // Coil
-    implementation("io.coil-kt:coil-compose:1.4.0")
-
-    //    navigation
-    implementation 'androidx.navigation:navigation-compose:2.5.3'
-//    hilt
-    implementation 'androidx.hilt:hilt-navigation-compose:1.0.0'
-//    dagger hilt
-    implementation "com.google.dagger:hilt-android:2.43.2"
-    implementation 'com.google.firebase:firebase-messaging-ktx:23.1.2'
-    implementation 'com.google.firebase:firebase-messaging:20.3.0'
-
-    implementation 'com.android.volley:volley:1.2.1'
-    implementation 'com.google.firebase:firebase-crashlytics-buildtools:2.9.5'
-    implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'com.google.android.material:material:1.4.0'
-    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
     implementation 'com.google.android.gms:play-services-wearable:18.1.0'
-    implementation 'androidx.room:room-common:2.6.1'
-    implementation 'androidx.room:room-ktx:2.6.1'
-    kapt "com.google.dagger:hilt-android-compiler:2.43.2"
 
-    implementation "com.squareup.retrofit2:retrofit:2.9.0"
+    implementation 'com.squareup.retrofit2:retrofit:2.9.0'
+    implementation 'com.squareup.retrofit2:converter-gson:2.9.0'
+    implementation 'com.squareup.okhttp3:okhttp:4.11.0'
 
+    implementation "io.coil-kt:coil-compose:2.6.0"
 
-//    location
-    implementation 'com.google.android.gms:play-services-location:19.0.1'
+    implementation 'androidx.navigation:navigation-compose:2.7.7'
+    implementation 'androidx.hilt:hilt-navigation-compose:1.2.0'
+    implementation "com.google.dagger:hilt-android:2.50"
+    kapt "com.google.dagger:hilt-android-compiler:2.50"
 
-//    SQLITE
-    implementation "androidx.sqlite:sqlite:2.2.0"
-
-
-    def room_version = "2.5.0" // Asegúrate de usar la última versión disponible
-
-    implementation "androidx.room:room-runtime:$room_version"
-    annotationProcessor "androidx.room:room-compiler:$room_version" // Para proyectos Java
-    kapt "androidx.room:room-compiler:$room_version" // Para proyectos Kotlin
-
-    implementation "androidx.compose.animation:animation:$compose_ui_version"
-    implementation 'com.squareup.okhttp3:okhttp:4.9.1'
-    implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.4.0"
     implementation 'com.android.volley:volley:1.2.1'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'com.google.android.material:material:1.11.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    
+    def room_version = "2.6.1"
+    implementation "androidx.room:room-runtime:$room_version"
+    implementation "androidx.room:room-ktx:$room_version"
+    kapt "androidx.room:room-compiler:$room_version"
 
-    implementation 'androidx.core:core-ktx:1.7.0'
-    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.3.1'
-    implementation 'androidx.activity:activity-compose:1.4.1'
-    implementation "androidx.compose.ui:ui:$compose_ui_version"
-    implementation "androidx.compose.ui:ui-tooling-preview:$compose_ui_version"
-    implementation 'androidx.compose.material:material:1.1.1'
+    implementation 'com.google.android.gms:play-services-location:21.1.0'
+
+    implementation 'androidx.core:core-ktx:1.12.0'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.7.0'
+    implementation 'androidx.activity:activity-compose:1.8.2'
+    implementation "androidx.compose.ui:ui:1.6.1"
+    implementation "androidx.compose.ui:ui-tooling-preview:1.6.1"
+    implementation 'androidx.compose.material:material:1.6.1'
+    
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.5'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.1'
-    androidTestImplementation "androidx.compose.ui:ui-test-junit4:$compose_ui_version"
-    debugImplementation "androidx.compose.ui:ui-tooling:$compose_ui_version"
-    debugImplementation "androidx.compose.ui:ui-test-manifest:$compose_ui_version"
+    androidTestImplementation "androidx.compose.ui:ui-test-junit4:1.6.1"
+    debugImplementation "androidx.compose.ui:ui-tooling:1.6.1"
+    debugImplementation "androidx.compose.ui:ui-test-manifest:1.6.1"
 }

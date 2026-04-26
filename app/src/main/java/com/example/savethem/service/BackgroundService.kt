@@ -1,122 +1,123 @@
 package com.example.savethem.service
 
+import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
+import android.content.pm.ServiceInfo
+import android.location.Location
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material.Button
-import androidx.compose.material.Text
-import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
-import androidx.navigation.NavController
 import com.example.savethem.DAO.DAO
+import com.example.savethem.Model.LocationModel
 import com.example.savethem.R
-import com.example.savethem.Repository.Repository
-import com.example.savethem.Repository.UserRepository
-import com.example.savethem.ViewModel.ChatViewModel
-import com.example.savethem.ViewModel.FriendsViewModel
-import com.example.savethem.call.enviar
-import kotlin.random.Random
+import com.google.android.gms.location.*
+import com.google.firebase.auth.FirebaseAuth
+import java.util.*
 
-class MyBackgroundService() : Service() {
-	private val CHANNEL_ID = "ForegroundServiceChannel"
-	private var counter = 0
-	private lateinit var friendsViewModel: FriendsViewModel
+class MyBackgroundService : Service() {
+    private val CHANNEL_ID = "ForegroundServiceChannel"
+    private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private lateinit var dao: DAO
+    private var friendId: String? = null
+    
+    // Referencia al callback para poder detenerlo
+    private var locationCallback: LocationCallback? = null
 
-	override fun onCreate() {
-		super.onCreate()
-		createNotificationChannel()
-		friendsViewModel = FriendsViewModel(Repository(DAO()), UserRepository(this))
-		friendsViewModel.getAllFriends()
-	}
+    override fun onCreate() {
+        super.onCreate()
+        createNotificationChannel()
+        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        dao = DAO()
+    }
 
-	override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-		val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-			.setContentTitle("Background Service")
-			.setContentText("Service is running")
-			.setSmallIcon(R.drawable.norma)
-			.build()
+    @SuppressLint("ForegroundServiceType")
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        friendId = intent?.getStringExtra("FRIEND_ID")
 
-		startForeground(1, notification)
+        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle("SaveThem Tracking")
+            .setContentText("Compartiendo tu ubicación en tiempo real...")
+            .setSmallIcon(R.drawable.norma)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setOngoing(true)
+            .build()
 
-		Thread {
-			while (true) {
-				Thread.sleep(5000) // Sleep for 5 seconds
-				val randomNumber = Random.nextInt(0, 200)
-				if (randomNumber in 100..150) {
-					friendsViewModel.friends.value.forEach { friend ->
-						friend.token?.let { token ->
-							if (token.isNotEmpty()){
-								enviar(this, token)
-							}else{
-								Log.d("TOKEN", "Token is empty for friend: ${friend.name}")
-							}
-						} ?: Log.e("FCM ERROR", "token is null for friend ${friend.name}")
-					}
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(1, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
+        } else {
+            startForeground(1, notification)
+        }
 
-				}
-			}
-		}.start()
+        startLocationUpdates()
 
-		return START_STICKY
-	}
+        return START_STICKY
+    }
 
+    @SuppressLint("MissingPermission")
+    private fun startLocationUpdates() {
+        // Evitar múltiples suscripciones
+        if (locationCallback != null) return
 
-	private fun sendNotification(counter: Int) {
-		val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-			.setContentTitle("Background Service")
-			.setContentText("Notification $counter")
-			.setSmallIcon(R.drawable.norma)
-			.setPriority(NotificationCompat.PRIORITY_HIGH)
-			.build()
+        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5000)
+            .setWaitForAccurateLocation(false)
+            .setMinUpdateIntervalMillis(3000)
+            .setMaxUpdateDelayMillis(10000)
+            .build()
 
-		with(NotificationManagerCompat.from(this)) {
-			notify(counter, notification)
-		}
-	}
+        locationCallback = object : LocationCallback() {
+            override fun onLocationResult(locationResult: LocationResult) {
+                for (location in locationResult.locations) {
+                    saveLocationToFirebase(location)
+                }
+            }
+        }
 
-	override fun onBind(intent: Intent?): IBinder? {
-		return null
-	}
+        locationCallback?.let {
+            fusedLocationClient.requestLocationUpdates(locationRequest, it, null)
+        }
+    }
 
-	private fun createNotificationChannel() {
-		if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-			val serviceChannel = NotificationChannel(
-				CHANNEL_ID,
-				"Foreground Service Channel",
-				NotificationManager.IMPORTANCE_DEFAULT
-			)
-			val manager = getSystemService(NotificationManager::class.java)
-			manager.createNotificationChannel(serviceChannel)
-		}
-	}
+    private fun saveLocationToFirebase(location: Location) {
+        val currentUser = FirebaseAuth.getInstance().currentUser ?: return
+        val currentFriendId = friendId ?: return
+
+        val messageID = UUID.randomUUID().toString()
+        val locationModel = LocationModel(
+            IDMessage = messageID,
+            UUIDSender = currentUser.uid,
+            location = com.example.savethem.Model.LatLngWrapper(location.latitude, location.longitude),
+            timestamp = -1L
+        )
+
+        dao.addLocation(locationModel, currentFriendId, messageID)
+        Log.d("SERVICE", "Ubicación guardada: ${location.latitude}, ${location.longitude}")
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // DETENER ACTUALIZACIONES DE UBICACIÓN
+        locationCallback?.let {
+            fusedLocationClient.removeLocationUpdates(it)
+            Log.d("SERVICE", "Actualizaciones de ubicación detenidas.")
+        }
+        locationCallback = null
+    }
+
+    override fun onBind(intent: Intent?): IBinder? = null
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val serviceChannel = NotificationChannel(
+                CHANNEL_ID,
+                "Foreground Service Channel",
+                NotificationManager.IMPORTANCE_LOW
+            )
+            val manager = getSystemService(NotificationManager::class.java)
+            manager?.createNotificationChannel(serviceChannel)
+        }
+    }
 }
-
-
-
-//private fun tes() {
-//	val friendsViewModel: FriendsViewModel
-//	val context = LocalContext
-//
-//	val friends by friendsViewModel.friends.collectAsState()
-//	friendsViewModel.getAllFriends()
-//			Log.d("TOKENS", friends.map { it.token }.toString())
-//			// Aquí iteramos sobre todos los amigos en la lista y enviamos notificación a cada uno
-//			friends.forEach { friend ->
-//				friend.token?.let { token ->
-//					if (token.isNotEmpty()) {
-//						enviar(context = context, token = token)
-//					} else {
-////						Log.e("FCM_ERROR", "Token is empty for friend: ${friend.name}")
-//					}
-//				}
-//			}
-//}

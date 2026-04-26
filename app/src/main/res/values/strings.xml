@@ -1,6 +1,7 @@
 <resources>
-    <string name="app_name">Norma</string>
+    <string name="app_name">WomanSafe</string>
     <string name="name">name</string>
     <string name="password">Password</string>
     <string name="email">Email</string>
+    <string name="default_web_client_id"></string>
 </resources>
