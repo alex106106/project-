@@ -7,9 +7,11 @@ import com.example.savethem.DAO.ChatDao
 import com.example.savethem.Model.*
 import com.example.savethem.Repository.Repository
 import com.example.savethem.util.EncryptionUtils
+import com.example.savethem.util.FcmUtil
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.*
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.*
@@ -19,7 +21,8 @@ import javax.inject.Inject
 @HiltViewModel
 class ChatViewModel @Inject constructor(
     private val repository: Repository,
-    private val chatDao: ChatDao
+    private val chatDao: ChatDao,
+    @ApplicationContext private val context: Context
 ): ViewModel() {
 
     private val _selectedFriend = MutableStateFlow<registerModel?>(null)
@@ -165,12 +168,33 @@ class ChatViewModel @Inject constructor(
 
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                // 1. Guardar localmente y en Firebase
                 chatDao.insertMessages(listOf(
                     ChatEntity(messageID, messageText, currentUser.uid, timestamp, false, receiverId)
                 ))
                 repository.sendMessage(chatModelForFirebase, receiverId)
+
+                // 2. Obtener el nombre del remitente (desencriptado) para la notificación
+                val senderName = repository.getUserData()?.name ?: "Alguien"
+
+                // 3. Enviar Notificación al receptor
+                // Buscamos el token más reciente del receptor directamente desde su nodo principal
+                val recipientToken = FirebaseDatabase.getInstance()
+                    .getReference("users/$receiverId/userData/token")
+                    .get().addOnSuccessListener { snapshot ->
+                        val token = snapshot.getValue(String::class.java)
+                        if (!token.isNullOrEmpty()) {
+                            FcmUtil.sendNotification(
+                                context = context,
+                                token = token,
+                                title = senderName,
+                                body = messageText, // El texto original sin cifrar para la vista previa
+                                icon = "norma"
+                            )
+                        }
+                    }
             } catch (e: Exception) {
-                Log.e("ChatVM", "Error enviando mensaje", e)
+                Log.e("ChatVM", "Error enviando mensaje o notificación", e)
             }
         }
     }

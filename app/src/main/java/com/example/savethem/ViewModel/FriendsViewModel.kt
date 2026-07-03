@@ -1,6 +1,7 @@
 package com.example.savethem.ViewModel
 
 import android.content.Context
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.savethem.Model.ChatModel
@@ -10,6 +11,7 @@ import com.example.savethem.Repository.UserRepository
 import com.example.savethem.util.EncryptionUtils
 import com.example.savethem.util.FcmUtil
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.database.FirebaseDatabase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -28,7 +30,7 @@ import javax.inject.Inject
 class FriendsViewModel @Inject constructor(
     private val repository: Repository,
     private val userRepository: UserRepository,
-    @ApplicationContext private val context: Context // Inyectamos el contexto para FCM
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _friends = MutableStateFlow<List<registerModel>>(emptyList())
@@ -82,7 +84,7 @@ class FriendsViewModel @Inject constructor(
     fun sendEmergencyMessage() {
         val currentUser = FirebaseAuth.getInstance().currentUser ?: return
         val currentFriends = _friends.value
-        val emergencyText = "🚨 EMERGENCIA: ¡Necesito ayuda! Esta es una alerta automática de WomenSafe."
+        val emergencyText = "🚨 EMERGENCIA: ¡Necesito ayuda! Esta es una alerta automática de SaveThem."
         val encryptedMessage = EncryptionUtils.encrypt(emergencyText)
 
         viewModelScope.launch(Dispatchers.IO) {
@@ -99,29 +101,21 @@ class FriendsViewModel @Inject constructor(
                 )
                 repository.sendMessage(chatModel, friendId)
                 
-                // Enviar notificación FCM V1 (incluyendo el contexto)
-                friend.token?.let { token ->
-                    FcmUtil.sendNotification(
-                        context = context,
-                        token = token,
-                        title = "ALERTA SOS",
-                        body = "$senderName ha activado el servicio de emergencia.",
-                        icon = "otro"
-                    )
-                }
-            }
-        }
-    }
-
-    fun enviarNotificaciones(tokens: List<String>) {
-        viewModelScope.launch {
-            tokens.forEach { token ->
-                FcmUtil.sendNotification(
-                    context = context,
-                    token = token,
-                    title = "Notificación Masiva",
-                    body = "Este es un mensaje de prueba para todos los amigos."
-                )
+                // Buscar token en vivo para cada amigo en la emergencia
+                FirebaseDatabase.getInstance()
+                    .getReference("users/$friendId/userData/token")
+                    .get().addOnSuccessListener { snapshot ->
+                        val token = snapshot.getValue(String::class.java)
+                        if (!token.isNullOrEmpty()) {
+                            FcmUtil.sendNotification(
+                                context = context,
+                                token = token,
+                                title = "🚨 ALERTA SOS 🚨",
+                                body = "$senderName necesita ayuda urgente.",
+                                icon = "otro"
+                            )
+                        }
+                    }
             }
         }
     }
