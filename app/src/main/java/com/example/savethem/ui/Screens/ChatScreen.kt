@@ -10,6 +10,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -22,10 +23,16 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -60,14 +67,16 @@ fun ChatMainScreen(id: String, chatViewModel: ChatViewModel, mainViewModel: main
                 isDarkMode = isDarkMode
             ) 
         },
-        content = { 
+        backgroundColor = if (isDarkMode) Color(0xFF121212) else Color(0xFFF8F9FD)
+    ) { paddingValues ->
+        Box(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
             ChatScreen(
                 id = id, 
                 chatViewModel = chatViewModel,
                 isDarkMode = isDarkMode
             ) 
         }
-    )
+    }
 }
 
 @Composable
@@ -105,23 +114,61 @@ fun TopAppBarChat(
         }
     }
     
-    TopAppBar(
-        navigationIcon = {
+    Surface(
+        elevation = 8.dp,
+        color = if (isDarkMode) Color(0xFF1E1E1E) else Color.White
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(64.dp)
+                .padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             IconButton(onClick = { navController.popBackStack() }) {
                 Icon(
-                    painter = painterResource(id = R.drawable.arrowback),
-                    contentDescription = null,
+                    imageVector = Icons.Default.ArrowBack,
+                    contentDescription = "Back",
                     tint = if (isDarkMode) Color.White else colorResource(id = R.color.md_purple_800)
                 )
             }
-        },
-        title = { 
-            Text(
-                text = selectedFriend?.name ?: "Chat",
-                color = if (isDarkMode) Color.White else Color.Black
-            )
-        },
-        actions = {
+            
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(if (isDarkMode) Color(0xFF333333) else colorResource(id = R.color.md_purple_100)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = (selectedFriend?.name?.take(1) ?: "U").uppercase(),
+                    style = TextStyle(
+                        fontWeight = FontWeight.Bold,
+                        color = colorResource(id = R.color.md_purple_800)
+                    )
+                )
+            }
+            
+            Spacer(modifier = Modifier.width(12.dp))
+            
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = selectedFriend?.name ?: "Chat",
+                    style = TextStyle(
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isDarkMode) Color.White else Color.Black
+                    )
+                )
+                Text(
+                    text = if (isServiceRunning) "Rastreo activo" else "En línea",
+                    style = TextStyle(
+                        fontSize = 11.sp,
+                        color = if (isServiceRunning) Color.Red else Color.Gray
+                    )
+                )
+            }
+
             IconButton(
                 onClick = {
                     if (isServiceRunning) {
@@ -149,7 +196,7 @@ fun TopAppBarChat(
                 }
             ) {
                 Icon(
-                    imageVector = Icons.Default.LocationOn,
+                    imageVector = Icons.Default.Person,
                     contentDescription = "Tracking",
                     tint = if (isServiceRunning) Color.Red else if (isDarkMode) Color.White else colorResource(id = R.color.md_purple_800)
                 )
@@ -160,7 +207,7 @@ fun TopAppBarChat(
                     Icon(
                         imageVector = Icons.Default.MoreVert,
                         contentDescription = "Options",
-                        tint = if (isDarkMode) Color.White else colorResource(id = R.color.md_purple_800)
+                        tint = if (isDarkMode) Color.White else Color.Gray
                     )
                 }
                 DropdownMenu(
@@ -174,7 +221,7 @@ fun TopAppBarChat(
                     }) {
                         Icon(Icons.Default.Person, contentDescription = null, tint = if (isDarkMode) Color.White else Color.Black)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Ver Perfil de ${selectedFriend?.name ?: "Amigo"}", color = if (isDarkMode) Color.White else Color.Black)
+                        Text("Ver Perfil", color = if (isDarkMode) Color.White else Color.Black)
                     }
                     DropdownMenuItem(onClick = { 
                         showMenu = false
@@ -182,7 +229,7 @@ fun TopAppBarChat(
                         val shareText = if (lastLoc != null) {
                             "Ubicación de ${selectedFriend?.name}: https://www.google.com/maps/search/?api=1&query=${lastLoc.location?.latitude},${lastLoc.location?.longitude}"
                         } else {
-                            "Compartiendo contacto de seguridad: ${selectedFriend?.name} (${selectedFriend?.email})"
+                            "Compartiendo contacto: ${selectedFriend?.name}"
                         }
                         val sendIntent: Intent = Intent().apply {
                             action = Intent.ACTION_SEND
@@ -193,14 +240,12 @@ fun TopAppBarChat(
                     }) {
                         Icon(Icons.Default.Share, contentDescription = null, tint = if (isDarkMode) Color.White else Color.Black)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Compartir Ubicación", color = if (isDarkMode) Color.White else Color.Black)
+                        Text("Compartir", color = if (isDarkMode) Color.White else Color.Black)
                     }
                 }
             }
-        },
-        backgroundColor = if (isDarkMode) Color(0xFF1E1E1E) else colorResource(id = R.color.md_purple_200).copy(alpha = 0.9f),
-        elevation = 0.dp
-    )
+        }
+    }
 }
 
 @Composable
@@ -210,7 +255,7 @@ fun ChatScreen(id: String, chatViewModel: ChatViewModel, isDarkMode: Boolean) {
     val locationList by chatViewModel.locationById.collectAsState(emptyList())
     val selectedFriend by chatViewModel.selectedFriend.collectAsState(null)
     
-    var isChatVisible by remember { mutableStateOf(true) }
+    var isChatVisible by remember { mutableStateOf(false) }
 
     LaunchedEffect(id) {
         chatViewModel.getAllMessage(currentUserId, id)
@@ -218,7 +263,7 @@ fun ChatScreen(id: String, chatViewModel: ChatViewModel, isDarkMode: Boolean) {
         chatViewModel.friendID(id)
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(if (isDarkMode) Color(0xFF121212) else Color.White)) {
+    Box(modifier = Modifier.fillMaxSize()) {
         val cameraPositionState = rememberCameraPositionState()
         var hasInitiallyMovedCamera by remember { mutableStateOf(false) }
 
@@ -226,8 +271,10 @@ fun ChatScreen(id: String, chatViewModel: ChatViewModel, isDarkMode: Boolean) {
             if (locationList.isNotEmpty() && !hasInitiallyMovedCamera) {
                 val lastLoc = locationList.lastOrNull { it.UUIDSender != currentUserId } ?: locationList.last()
                 lastLoc.location?.let {
-                    cameraPositionState.position = CameraPosition.fromLatLngZoom(LatLng(it.latitude, it.longitude), 15f)
-                    hasInitiallyMovedCamera = true
+                    if (it.latitude != 0.0 && it.longitude != 0.0) {
+                        cameraPositionState.position = CameraPosition.fromLatLngZoom(LatLng(it.latitude, it.longitude), 15f)
+                        hasInitiallyMovedCamera = true
+                    }
                 }
             }
         }
@@ -243,20 +290,26 @@ fun ChatScreen(id: String, chatViewModel: ChatViewModel, isDarkMode: Boolean) {
                 }
 
                 locationsByUser.forEach { (senderId, userLocations) ->
-                    val path = userLocations.sortedBy { it.timestamp }.mapNotNull { it.location?.let { loc -> LatLng(loc.latitude, loc.longitude) } }
+                    // FILTROS:
+                    // 1. Ordenar por tiempo
+                    // 2. Eliminar coordenadas invalidas (0.0, 0.0)
+                    // 3. Tomar solo los últimos 15 puntos para evitar "spaghetti" de líneas
+                    val path = userLocations
+                        .sortedBy { it.timestamp }
+                        .mapNotNull { it.location?.let { loc -> 
+                            if (loc.latitude != 0.0 && loc.longitude != 0.0) LatLng(loc.latitude, loc.longitude) else null 
+                        }}
+                        .takeLast(15) 
+
                     if (path.isNotEmpty()) {
                         val isMe = senderId == currentUserId
-                        val polylineColor = if (isMe) {
-                            if (isDarkMode) Color.Cyan else Color.Blue
-                        } else {
-                            if (isDarkMode) Color.Magenta else Color.Red
-                        }
+                        val polylineColor = if (isMe) colorResource(id = R.color.md_purple_800) else Color(0xFFFF5252)
                         
                         Polyline(
                             points = path, 
                             color = polylineColor, 
-                            width = 12f,
-                            pattern = if (isMe) null else listOf(Dash(30f), Gap(20f)), // Sólida para TI, Discontinua para AMIGO
+                            width = 8f, // Un poco más delgada para verse mejor
+                            pattern = if (isMe) null else listOf(Dash(20f), Gap(10f)),
                             jointType = JointType.ROUND,
                             startCap = RoundCap(),
                             endCap = RoundCap()
@@ -267,7 +320,7 @@ fun ChatScreen(id: String, chatViewModel: ChatViewModel, isDarkMode: Boolean) {
                             state = MarkerState(position = lastPoint),
                             title = if(isMe) "Tú" else selectedFriend?.name ?: "Amigo",
                             icon = BitmapDescriptorFactory.defaultMarker(
-                                if(isMe) BitmapDescriptorFactory.HUE_AZURE else BitmapDescriptorFactory.HUE_ROSE
+                                if(isMe) BitmapDescriptorFactory.HUE_VIOLET else BitmapDescriptorFactory.HUE_RED
                             )
                         )
                     }
@@ -275,33 +328,29 @@ fun ChatScreen(id: String, chatViewModel: ChatViewModel, isDarkMode: Boolean) {
             }
         }
 
-        // LEYENDA DEL MAPA (Diferenciación Visual)
-        Card(
-            modifier = Modifier.align(Alignment.TopEnd).padding(16.dp).padding(top = 70.dp),
-            shape = RoundedCornerShape(12.dp),
+        Surface(
+            modifier = Modifier.align(Alignment.TopEnd).padding(16.dp).padding(top = 16.dp),
+            shape = RoundedCornerShape(16.dp),
             elevation = 6.dp,
-            backgroundColor = if (isDarkMode) Color(0xFF1E1E1E).copy(alpha = 0.9f) else Color.White.copy(alpha = 0.9f)
+            color = if (isDarkMode) Color(0xFF1E1E1E).copy(alpha = 0.9f) else Color.White.copy(alpha = 0.9f)
         ) {
             Column(modifier = Modifier.padding(12.dp)) {
-                Text("Rutas", fontWeight = FontWeight.ExtraBold, fontSize = 12.sp, color = if(isDarkMode) Color.White else Color.Black)
+                Text("Leyenda", fontWeight = FontWeight.Bold, fontSize = 12.sp, color = if(isDarkMode) Color.White else Color.Black)
                 Spacer(modifier = Modifier.height(8.dp))
-                LegendItem(color = if (isDarkMode) Color.Cyan else Color.Blue, label = "Tú (Sólida)", isDashed = false, isDarkMode)
-                Spacer(modifier = Modifier.height(6.dp))
-                LegendItem(color = if (isDarkMode) Color.Magenta else Color.Red, label = selectedFriend?.name ?: "Amigo (Guiones)", isDashed = true, isDarkMode)
+                LegendItem(color = colorResource(id = R.color.md_purple_800), label = "Tú", isDashed = false, isDarkMode)
+                Spacer(modifier = Modifier.height(4.dp))
+                LegendItem(color = Color(0xFFFF5252), label = selectedFriend?.name ?: "Amigo", isDashed = true, isDarkMode)
             }
         }
 
-        FloatingActionButton(
+        ExtendedFloatingActionButton(
+            text = { Text(if(isChatVisible) "Cerrar" else "Chat") },
+            icon = { Icon(if(isChatVisible) Icons.Default.KeyboardArrowDown else Icons.Default.Menu, contentDescription = null) },
             onClick = { isChatVisible = !isChatVisible },
-            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp).padding(bottom = if(isChatVisible) 360.dp else 0.dp),
-            backgroundColor = if (isDarkMode) Color(0xFF2C2C2C) else colorResource(id = R.color.md_purple_800),
+            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp).padding(bottom = if(isChatVisible) 340.dp else 0.dp),
+            backgroundColor = colorResource(id = R.color.md_purple_800),
             contentColor = Color.White
-        ) {
-            Icon(
-                imageVector = if (isChatVisible) Icons.Default.Close else Icons.Default.Place, 
-                contentDescription = "Toggle Chat"
-            )
-        }
+        )
 
         AnimatedVisibility(
             visible = isChatVisible,
@@ -309,31 +358,40 @@ fun ChatScreen(id: String, chatViewModel: ChatViewModel, isDarkMode: Boolean) {
             exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
             modifier = Modifier.align(Alignment.BottomCenter)
         ) {
-            Card(
+            Surface(
                 modifier = Modifier.fillMaxWidth().height(350.dp).padding(8.dp),
-                shape = RoundedCornerShape(24.dp),
-                elevation = 12.dp,
-                backgroundColor = if (isDarkMode) Color(0xFF1E1E1E).copy(alpha = 0.95f) else Color.White.copy(alpha = 0.95f)
+                shape = RoundedCornerShape(28.dp),
+                elevation = 20.dp,
+                color = if (isDarkMode) Color(0xFF1E1E1E).copy(alpha = 0.98f) else Color.White.copy(alpha = 0.98f)
             ) {
                 Column {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(4.dp)
+                            .padding(top = 12.dp)
+                            .align(Alignment.CenterHorizontally)
+                            .width(40.dp)
+                            .background(Color.LightGray, CircleShape)
+                    )
+                    
                     Row(
-                        modifier = Modifier.fillMaxWidth().padding(8.dp),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            "Chat con ${selectedFriend?.name ?: "..."}",
+                            "Mensajes con ${selectedFriend?.name ?: "..."}",
                             fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(start = 12.dp),
+                            fontSize = 16.sp,
                             color = if (isDarkMode) Color.White else Color.Black
                         )
-                        IconButton(onClick = { isChatVisible = false }) {
-                            Icon(Icons.Default.Close, contentDescription = null, tint = if (isDarkMode) Color.White else Color.Black)
-                        }
                     }
+                    
                     Box(modifier = Modifier.weight(1f)) {
                         ChatList(chatViewModel = chatViewModel, isDarkMode = isDarkMode)
                     }
+                    
                     MessageInput(chatViewModel, selectedFriend?.UUID ?: "", isDarkMode = isDarkMode)
                 }
             }
@@ -344,17 +402,12 @@ fun ChatScreen(id: String, chatViewModel: ChatViewModel, isDarkMode: Boolean) {
 @Composable
 fun LegendItem(color: Color, label: String, isDashed: Boolean, isDarkMode: Boolean) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        if (isDashed) {
-            Row {
-                repeat(3) {
-                    Box(modifier = Modifier.size(width = 6.dp, height = 3.dp).background(color))
-                    Spacer(modifier = Modifier.width(2.dp))
-                }
-            }
-        } else {
-            Box(modifier = Modifier.size(width = 24.dp, height = 3.dp).background(color))
-        }
-        Spacer(modifier = Modifier.width(10.dp))
+        Box(
+            modifier = Modifier
+                .size(width = 20.dp, height = 4.dp)
+                .background(color, if (isDashed) RoundedCornerShape(1.dp) else CircleShape)
+        )
+        Spacer(modifier = Modifier.width(12.dp))
         Text(label, fontSize = 11.sp, fontWeight = FontWeight.Medium, color = if(isDarkMode) Color.White else Color.Black)
     }
 }
@@ -363,22 +416,25 @@ fun LegendItem(color: Color, label: String, isDashed: Boolean, isDarkMode: Boole
 fun MessageInput(chatViewModel: ChatViewModel, friendUuid: String, isDarkMode: Boolean) {
     var comment by remember { mutableStateOf("") }
     Row(
-        modifier = Modifier.padding(8.dp).fillMaxWidth(),
+        modifier = Modifier.padding(16.dp).fillMaxWidth().navigationBarsPadding(),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        OutlinedTextField(
+        TextField(
             value = comment,
             onValueChange = { comment = it },
-            modifier = Modifier.weight(1f).padding(end = 8.dp),
-            placeholder = { Text("Mensaje...", color = if (isDarkMode) Color.Gray else Color.Unspecified) },
+            modifier = Modifier.weight(1f),
+            placeholder = { Text("Mensaje...", color = Color.Gray) },
             shape = RoundedCornerShape(24.dp),
-            colors = TextFieldDefaults.outlinedTextFieldColors(
-                focusedBorderColor = colorResource(id = R.color.md_purple_500),
-                backgroundColor = if (isDarkMode) Color(0xFF2C2C2C) else Color.White,
-                textColor = if (isDarkMode) Color.White else Color.Black,
-                unfocusedBorderColor = if (isDarkMode) Color.Gray else Color.LightGray
+            colors = TextFieldDefaults.textFieldColors(
+                backgroundColor = if (isDarkMode) Color(0xFF2C2C2C) else Color(0xFFF1F3F4),
+                focusedIndicatorColor = Color.Transparent,
+                unfocusedIndicatorColor = Color.Transparent,
+                textColor = if (isDarkMode) Color.White else Color.Black
             )
         )
+        
+        Spacer(modifier = Modifier.width(8.dp))
+        
         IconButton(
             onClick = {
                 if (comment.isNotEmpty()) {
@@ -386,12 +442,18 @@ fun MessageInput(chatViewModel: ChatViewModel, friendUuid: String, isDarkMode: B
                     comment = ""
                 }
             },
-            enabled = comment.isNotEmpty()
+            modifier = Modifier
+                .size(48.dp)
+                .background(
+                    if (comment.isNotEmpty()) colorResource(id = R.color.md_purple_800) else Color.LightGray,
+                    CircleShape
+                )
         ) {
             Icon(
                 painter = painterResource(id = R.drawable.send),
                 contentDescription = null,
-                tint = if (comment.isNotEmpty()) colorResource(id = R.color.md_purple_800) else Color.Gray
+                tint = Color.White,
+                modifier = Modifier.size(20.dp)
             )
         }
     }
@@ -411,8 +473,8 @@ fun ChatList(chatViewModel: ChatViewModel, isDarkMode: Boolean) {
 
     LazyColumn(
         state = listState,
-        modifier = Modifier.fillMaxSize().padding(horizontal = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
         reverseLayout = true 
     ) {
         items(
@@ -420,33 +482,43 @@ fun ChatList(chatViewModel: ChatViewModel, isDarkMode: Boolean) {
             key = { message -> message.IDMessage }
         ) { message ->
             val isMe = message.UUIDSender == currentUser?.uid
-            Box(
-                modifier = Modifier.fillMaxWidth(),
-                contentAlignment = if (isMe) Alignment.CenterEnd else Alignment.CenterStart
-            ) {
-                Card(
-                    shape = RoundedCornerShape(
-                        topStart = 16.dp, topEnd = 16.dp,
-                        bottomStart = if (isMe) 16.dp else 4.dp,
-                        bottomEnd = if (isMe) 4.dp else 16.dp
-                    ),
-                    elevation = 2.dp,
-                    backgroundColor = if (isMe) (if (isDarkMode) Color(0xFF4A148C) else colorResource(id = R.color.md_pink_100)) else (if (isDarkMode) Color(0xFF333333) else Color(0xFFECECEC))
-                ) {
-                    Column(modifier = Modifier.padding(10.dp)) {
-                        Text(
-                            text = message.message,
-                            fontSize = 14.sp,
-                            color = if (isDarkMode) Color.White else Color.Black
-                        )
-                        Text(
-                            text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(message.timestamp)),
-                            fontSize = 10.sp,
-                            color = if (isDarkMode) Color.LightGray else Color.Gray,
-                            modifier = Modifier.align(Alignment.End)
-                        )
-                    }
-                }
+            ChatBubbleItem(message.message, message.timestamp, isMe, isDarkMode)
+        }
+    }
+}
+
+@Composable
+fun ChatBubbleItem(message: String, timestamp: Long, isMe: Boolean, isDarkMode: Boolean) {
+    val alignment = if (isMe) Alignment.CenterEnd else Alignment.CenterStart
+    val bubbleColor = if (isMe) colorResource(id = R.color.md_purple_800) else if (isDarkMode) Color(0xFF333333) else Color(0xFFEEEEEE)
+    val textColor = if (isMe) Color.White else if (isDarkMode) Color.White else Color.Black
+    
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = alignment
+    ) {
+        Surface(
+            shape = RoundedCornerShape(
+                topStart = 16.dp, topEnd = 16.dp,
+                bottomStart = if (isMe) 16.dp else 4.dp,
+                bottomEnd = if (isMe) 4.dp else 16.dp
+            ),
+            elevation = 1.dp,
+            color = bubbleColor
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                Text(
+                    text = message,
+                    fontSize = 15.sp,
+                    color = textColor,
+                    lineHeight = 20.sp
+                )
+                Text(
+                    text = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(timestamp)),
+                    fontSize = 10.sp,
+                    color = if (isMe) Color.White.copy(alpha = 0.7f) else Color.Gray,
+                    modifier = Modifier.align(Alignment.End).padding(top = 2.dp)
+                )
             }
         }
     }

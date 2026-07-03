@@ -273,7 +273,8 @@ class DAO @Inject constructor() : AccessDAO {
         addMessage.IDMessage = messageID
         addMessage.UUIDSender = uid
         
-        val locationData = addMessage.toMap().plus("timestamp" to ServerValue.TIMESTAMP)
+        val timestampToUse = if (addMessage.timestamp != null && addMessage.timestamp!! > 0) addMessage.timestamp else ServerValue.TIMESTAMP
+        val locationData = addMessage.toMap().plus("timestamp" to timestampToUse)
         
         // idUser es el Auth UID del amigo, id es el Auth UID del sender
         val updates = hashMapOf<String, Any>(
@@ -292,7 +293,10 @@ class DAO @Inject constructor() : AccessDAO {
         val uid = auth.currentUser?.uid ?: return result
         addMessage.IDMessage = messageID
         addMessage.UUIDSender = uid
-        val locationData = addMessage.toMap().plus("timestamp" to ServerValue.TIMESTAMP)
+        
+        // Respetamos el timestamp del GPS si viene configurado
+        val timestampToUse = if (addMessage.timestamp != null && addMessage.timestamp!! > 0) addMessage.timestamp else ServerValue.TIMESTAMP
+        val locationData = addMessage.toMap().plus("timestamp" to timestampToUse)
         
         val updates = hashMapOf<String, Any>(
             "users/$uid/friends/$id/locationFriend/$messageID" to locationData,
@@ -328,7 +332,8 @@ class DAO @Inject constructor() : AccessDAO {
 
     override fun updateLocationById(location: LocationModel, id: String, idUser: String, messageId: String): LiveData<LocationModel> {
         val result = MutableLiveData<LocationModel>()
-        val locationData = location.toMap().plus("timestamp" to ServerValue.TIMESTAMP)
+        val timestampToUse = if (location.timestamp != null && location.timestamp!! > 0) location.timestamp else ServerValue.TIMESTAMP
+        val locationData = location.toMap().plus("timestamp" to timestampToUse)
         database.getReference("users/$idUser/friends/$id/locationFriend/$messageId").setValue(locationData).addOnSuccessListener { result.value = location }
         return result
     }
