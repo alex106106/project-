@@ -4,4 +4,6 @@
     <string name="password">Password</string>
     <string name="email">Email</string>
     <string name="default_web_client_id"></string>
+    <string name="anti_theft_label">Modo Anti-Robo SaveThem</string>
+    <string name="anti_theft_description">Detecta intentos erróneos de contraseña en la pantalla de bloqueo para activar la localización en tiempo real.</string>
 </resources>

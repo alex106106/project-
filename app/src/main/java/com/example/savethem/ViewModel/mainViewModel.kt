@@ -39,6 +39,9 @@ class mainViewModel @Inject constructor(application: Application,
     private val _radiusFilter = MutableStateFlow<Double?>(null)
     val radiusFilter: StateFlow<Double?> = _radiusFilter.asStateFlow()
 
+    private val _showHeatmap = MutableStateFlow(false)
+    val showHeatmap: StateFlow<Boolean> = _showHeatmap.asStateFlow()
+
     private val _name = MutableStateFlow("")
     val name: StateFlow<String> = _name
 
@@ -65,6 +68,13 @@ class mainViewModel @Inject constructor(application: Application,
 
     private val _safePlaces = MutableStateFlow<List<SafePlaceModel>>(emptyList())
     val safePlaces: StateFlow<List<SafePlaceModel>> = _safePlaces.asStateFlow()
+
+    // Nuevos estados para el modo Anti-Robo por palabra clave
+    private val _isAntiTheftEnabled = MutableStateFlow(prefs.getBoolean("anti_theft_remote_enabled", false))
+    val isAntiTheftEnabled: StateFlow<Boolean> = _isAntiTheftEnabled.asStateFlow()
+
+    private val _antiTheftKeyword = MutableStateFlow(prefs.getString("anti_theft_remote_keyword", "#ACTIVAR_RASTREO") ?: "#ACTIVAR_RASTREO")
+    val antiTheftKeyword: StateFlow<String> = _antiTheftKeyword.asStateFlow()
 
     val filteredSafetyAlerts = combine(_safetyAlerts, _currentUserLocation, _radiusFilter) { alerts, userLoc, radius ->
         if (userLoc == null || radius == null) {
@@ -154,6 +164,20 @@ class mainViewModel @Inject constructor(application: Application,
         FirebaseDatabase.getInstance().getReference("users/$uid/stealthSettings").setValue(settings)
     }
 
+    // Funciones para guardar la configuración Anti-Robo por palabra clave
+    fun toggleAntiTheftRemote(enabled: Boolean) {
+        _isAntiTheftEnabled.value = enabled
+        prefs.edit().putBoolean("anti_theft_remote_enabled", enabled).apply()
+    }
+
+    fun saveAntiTheftKeyword(keyword: String) {
+        val cleanKeyword = keyword.trim()
+        if (cleanKeyword.isNotEmpty()) {
+            _antiTheftKeyword.value = cleanKeyword
+            prefs.edit().putString("anti_theft_remote_keyword", cleanKeyword).apply()
+        }
+    }
+
     fun getUserData() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -173,6 +197,8 @@ class mainViewModel @Inject constructor(application: Application,
     }
 
     fun setRadiusFilter(km: Double?) { _radiusFilter.value = km }
+
+    fun toggleHeatmap(enabled: Boolean) { _showHeatmap.value = enabled }
 
     fun reportIncident(alert: SafetyAlertModel) {
         viewModelScope.launch(Dispatchers.IO) { repository.reportSafetyAlert(alert) }

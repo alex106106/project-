@@ -3,10 +3,13 @@ package com.example.savethem.notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
+import android.content.Intent
 import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.example.savethem.R
+import com.example.savethem.service.EmergencyService
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.messaging.FirebaseMessagingService
@@ -32,23 +35,43 @@ class Notification : FirebaseMessagingService() {
     }
 
     override fun onMessageReceived(message: RemoteMessage) {
-        // No llamar a super.onMessageReceived(message) para evitar comportamientos duplicados
-        
         Log.d("FCM", "Mensaje recibido de: ${message.from}")
+
+        val prefs = getSharedPreferences("settings", Context.MODE_PRIVATE)
+        val isAntiTheftEnabled = prefs.getBoolean("anti_theft_remote_enabled", false)
+        val secretKeyword = prefs.getString("anti_theft_remote_keyword", "#ACTIVAR_RASTREO") ?: "#ACTIVAR_RASTREO"
 
         // Extraer datos tanto de 'notification' como de 'data'
         val title = message.notification?.title ?: message.data["titulo"] ?: "Nuevo Mensaje"
         val body = message.notification?.body ?: message.data["detalle"] ?: "Has recibido un mensaje"
         val iconName = message.data["icon"] ?: "norma"
+        val action = message.data["action"] ?: ""
+
+        // Lógica de activación remota por palabra clave
+        if (isAntiTheftEnabled && (action == "TRIGGER_REMOTE_EMERGENCY" || body.contains(secretKeyword, ignoreCase = true))) {
+            Log.d("FCM_AntiTheft", "Comando secreto anti-robo detectado: $secretKeyword. Activando localización remota...")
+            
+            val serviceIntent = Intent(this, EmergencyService::class.java).apply {
+                this.action = "START_EMERGENCY"
+            }
+            
+            try {
+                ContextCompat.startForegroundService(this, serviceIntent)
+            } catch (e: Exception) {
+                startService(serviceIntent)
+            }
+            
+            // Retornamos sin mostrar notificación push visible para que el ladrón no sospeche
+            return
+        }
 
         showNotification(title, body, iconName)
     }
 
     private fun showNotification(titulo: String?, detalle: String?, iconName: String?) {
-        val channelId = "Mensaje" // Este ID debe coincidir con el enviado en FcmUtil
+        val channelId = "Mensaje" 
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
-        // Crear el canal para Android 8.0+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channelName = "Notificaciones de Chat"
             val importance = NotificationManager.IMPORTANCE_HIGH
@@ -60,7 +83,6 @@ class Notification : FirebaseMessagingService() {
             nm.createNotificationChannel(channel)
         }
 
-        // Obtener el recurso del icono
         val resourceId = if (!iconName.isNullOrEmpty()) {
             val id = resources.getIdentifier(iconName, "drawable", packageName)
             if (id != 0) id else R.drawable.otro
