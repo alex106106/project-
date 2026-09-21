@@ -5,9 +5,11 @@ import android.os.Build
 import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -40,11 +42,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.rememberAsyncImagePainter
 import com.example.savethem.Model.SafePlaceModel
 import com.example.savethem.Model.registerModel
 import com.example.savethem.R
+import com.example.savethem.ViewModel.ChatViewModel
 import com.example.savethem.ViewModel.FriendsViewModel
 import com.example.savethem.ViewModel.mainViewModel
 import com.example.savethem.navigation.Screens
@@ -57,6 +61,9 @@ fun MainScreen(viewModel: mainViewModel, navController: NavController, friendsVi
     var showAddDialog by remember { mutableStateOf(false) }
     var showSafePlaceDialog by remember { mutableStateOf(false) }
     var showSOSConfigDialog by remember { mutableStateOf(false) }
+    
+    var friendToDelete by remember { mutableStateOf<registerModel?>(null) }
+    val chatViewModel: ChatViewModel = hiltViewModel()
     
     val context = LocalContext.current
     
@@ -123,13 +130,6 @@ fun MainScreen(viewModel: mainViewModel, navController: NavController, friendsVi
                     }
                     
                     Row {
-                        IconButton(
-                            onClick = { navController.navigate(Screens.GlobalChat.route) },
-                            modifier = Modifier.background(colorResource(id = R.color.md_purple_50), CircleShape)
-                        ) {
-                            Icon(Icons.Default.Public, contentDescription = "Global", tint = colorResource(id = R.color.md_purple_800))
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
                         IconButton(onClick = { showSOSConfigDialog = true }) {
                             Icon(Icons.Default.Tune, contentDescription = "Config", tint = if (isDarkMode) Color.White else Color.Gray)
                         }
@@ -224,7 +224,12 @@ fun MainScreen(viewModel: mainViewModel, navController: NavController, friendsVi
                     }
                 } else {
                     items(friends) { friend ->
-                        FriendListItem(friend, navController, isDarkMode)
+                        FriendListItem(
+                            friend = friend,
+                            navController = navController,
+                            isDarkMode = isDarkMode,
+                            onLongClick = { friendToDelete = friend }
+                        )
                     }
                     
                     item {
@@ -238,6 +243,35 @@ fun MainScreen(viewModel: mainViewModel, navController: NavController, friendsVi
                         }
                     }
                 }
+            }
+
+            if (friendToDelete != null) {
+                AlertDialog(
+                    onDismissRequest = { friendToDelete = null },
+                    title = { Text("Eliminar de tus contactos") },
+                    text = { Text("¿Estás seguro de que deseas eliminar a ${friendToDelete?.name} de tu círculo de confianza? Esto borrará el chat e historial de ubicaciones compartidas por completo tanto de este dispositivo como de la nube.") },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            val targetId = friendToDelete?.UUID
+                            if (targetId != null) {
+                                chatViewModel.deleteChatAndFriend(targetId) {
+                                    friendsViewModel.getAllFriends()
+                                    Toast.makeText(context, "Contacto eliminado correctamente", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                            friendToDelete = null
+                        }) {
+                            Text("ELIMINAR", color = Color.Red, fontWeight = FontWeight.Bold)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { friendToDelete = null }) {
+                            Text("CANCELAR", color = Color.Gray)
+                        }
+                    },
+                    backgroundColor = if (isDarkMode) Color(0xFF1E1E1E) else Color.White,
+                    contentColor = if (isDarkMode) Color.White else Color.Black
+                )
             }
 
             if (showSOSConfigDialog) {
@@ -365,14 +399,20 @@ fun EmergencyControlCard(isActive: Boolean, onClick: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun FriendListItem(friend: registerModel, navController: NavController, isDarkMode: Boolean) {
+fun FriendListItem(friend: registerModel, navController: NavController, isDarkMode: Boolean, onLongClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { navController.navigate(Screens.Chat.route + "/${friend.UUID}") }, 
+            .shadow(2.dp, RoundedCornerShape(20.dp))
+            .clip(RoundedCornerShape(20.dp))
+            .combinedClickable(
+                onClick = { navController.navigate(Screens.Chat.route + "/${friend.UUID}") },
+                onLongClick = onLongClick
+            ), 
         shape = RoundedCornerShape(20.dp), 
-        elevation = 2.dp, 
+        elevation = 0.dp,
         backgroundColor = if (isDarkMode) Color(0xFF1E1E1E) else Color.White
     ) {
         Row(modifier = Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -476,10 +516,6 @@ fun BottomNavigationBarDesign(navController: NavController, isDarkMode: Boolean 
         }
     }
 }
-
-// ... Rest of the Dialog functions (CustomizeSOSDialog, AddFriendDialogDesign, SaveSafePlaceDialog, AppTourDialog)
-// updated with better styling inside their original code structure if needed, but the main screen is the priority.
-// I'll keep them as they are but ensuring they use modern shapes.
 
 @Composable
 fun CustomizeSOSDialog(viewModel: mainViewModel, onDismiss: () -> Unit) {

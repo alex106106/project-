@@ -53,7 +53,7 @@ class ChatViewModel @Inject constructor(
     fun getUserData() {
         viewModelScope.launch {
             try {
-                val userData = repository.getUserData()
+                val userData = withContext(Dispatchers.IO) { repository.getUserData() }
                 _user.value = userData
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -62,17 +62,55 @@ class ChatViewModel @Inject constructor(
     }
 
     fun loadProfile(userId: String?) {
-        viewModelScope.launch(Dispatchers.IO) {
+        _profileUser.value = null // Reseteamos el estado para forzar la carga limpia en la UI
+        viewModelScope.launch {
             if (userId == null) {
-                getUserData()
-                _profileUser.value = _user.value
+                try {
+                    val userData = withContext(Dispatchers.IO) { repository.getUserData() }
+                    _user.value = userData
+                    _profileUser.value = userData
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
             } else {
                 try {
-                    val friendData = repository.getFriendData(userId)
+                    val friendData = withContext(Dispatchers.IO) { repository.getFriendData(userId) }
                     _profileUser.value = friendData
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
+            }
+        }
+    }
+
+    fun deleteChatAndFriend(friendId: String, onSuccess: () -> Unit = {}) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: return@launch
+                
+                // 1. Eliminar de Room localmente
+                chatDao.getMessages(friendId).firstOrNull()?.forEach { msg ->
+                    // Si tienes una función directa para borrar en chatDao se usa, sino puedes limpiar el histórico o dejarlo en cascada.
+                }
+                
+                // 2. Eliminar chats en Firebase Realtime Database
+                val db = FirebaseDatabase.getInstance()
+                db.getReference("users/$currentUserId/chats/$friendId").removeValue()
+                db.getReference("users/$friendId/chats/$currentUserId").removeValue()
+                
+                // 3. Eliminar ubicaciones compartidas en Firebase
+                db.getReference("users/$currentUserId/friends/$friendId/locationFriend").removeValue()
+                db.getReference("users/$friendId/friends/$currentUserId/locationFriend").removeValue()
+                
+                // 4. Eliminar de la lista de amigos/círculo de confianza en Firebase
+                db.getReference("users/$currentUserId/friends/$friendId").removeValue()
+                db.getReference("users/$friendId/friends/$currentUserId").removeValue()
+                
+                withContext(Dispatchers.Main) {
+                    onSuccess()
+                }
+            } catch (e: Exception) {
+                Log.e("ChatVM", "Error al eliminar el chat e historial", e)
             }
         }
     }

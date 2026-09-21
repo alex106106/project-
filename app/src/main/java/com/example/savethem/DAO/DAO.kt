@@ -76,20 +76,20 @@ class DAO @Inject constructor() : AccessDAO {
 
     override suspend fun getUserData(): registerModel? {
         return try {
-            val cu = auth.currentUser
-            val snapshot = database.getReference("users/${cu?.uid}/userData").get().await()
+            val cu = auth.currentUser ?: return null
+            val snapshot = database.getReference("users/${cu.uid}/userData").get().await()
             val user = snapshot.getValue(registerModel::class.java)
             user?.apply {
                 name = EncryptionUtils.decrypt(name ?: "")
                 email = EncryptionUtils.decrypt(email ?: "")
-                UUID = cu?.uid // Aseguramos el Auth UID para rutas
+                UUID = cu.uid // Aseguramos el Auth UID para rutas
             }
         } catch (e: Exception) { null }
     }
 
     override suspend fun getFriendData(idFriend: String): registerModel? {
         return try {
-            val userId = auth.currentUser?.uid
+            val userId = auth.currentUser?.uid ?: return null
             val snapshot = database.getReference("users/$userId/friends/$idFriend").get().await()
             val friend = snapshot.getValue(registerModel::class.java)
             friend?.apply {
@@ -209,7 +209,10 @@ class DAO @Inject constructor() : AccessDAO {
                 }
                 trySendBlocking(friends)
             }
-            override fun onCancelled(error: DatabaseError) { close(error.toException()) }
+            override fun onCancelled(error: DatabaseError) {
+                Log.e("DAO", "getFriends cancelled: ${error.message}")
+                close()
+            }
         }
         ref.addValueEventListener(listener)
         awaitClose { ref.removeEventListener(listener) }
@@ -261,7 +264,10 @@ class DAO @Inject constructor() : AccessDAO {
                 val list = snapshot.children.mapNotNull { it.getValue(LocationModel::class.java) }
                 trySendBlocking(list.sortedBy { it.timestamp })
             }
-            override fun onCancelled(error: DatabaseError) { close(error.toException()) }
+            override fun onCancelled(error: DatabaseError) {
+                Log.e("DAO", "getLocation cancelled: ${error.message}")
+                close()
+            }
         }
         ref.addValueEventListener(listener)
         awaitClose { ref.removeEventListener(listener) }
@@ -324,7 +330,10 @@ class DAO @Inject constructor() : AccessDAO {
                     trySend(locationsList.sortedBy { it.timestamp ?: 0L })
                 }
             }
-            override fun onCancelled(error: DatabaseError) { close(error.toException()) }
+            override fun onCancelled(error: DatabaseError) {
+                Log.e("DAO", "getLocationById cancelled: ${error.message}")
+                close()
+            }
         }
         ref.addValueEventListener(listener)
         awaitClose { ref.removeEventListener(listener) }
@@ -376,10 +385,13 @@ class DAO @Inject constructor() : AccessDAO {
             override fun onChildChanged(snapshot: DataSnapshot, previousChildName: String?) {}
             override fun onChildRemoved(snapshot: DataSnapshot) {}
             override fun onChildMoved(snapshot: DataSnapshot, previousChildName: String?) {}
-            override fun onCancelled(error: DatabaseError) { close(error.toException()) }
+            override fun onCancelled(error: DatabaseError) {
+                Log.e("DAO", "getAllMessage cancelled: ${error.message}")
+                close()
+            }
         }
         ref.addChildEventListener(listener)
-        awaitClose { ref.removeEventListener(listener) }
+        awaitClose { ref.addChildEventListener(listener) }
     }
 
     override suspend fun listenMessages(idUser: String, chatId: String): Flow<List<ChatModel>> = callbackFlow {
@@ -392,10 +404,13 @@ class DAO @Inject constructor() : AccessDAO {
             override fun onChildChanged(snapshot: DataSnapshot, previousChildName: String?) {}
             override fun onChildRemoved(snapshot: DataSnapshot) {}
             override fun onChildMoved(snapshot: DataSnapshot, previousChildName: String?) {}
-            override fun onCancelled(error: DatabaseError) { close(error.toException()) }
+            override fun onCancelled(error: DatabaseError) {
+                Log.e("DAO", "listenMessages cancelled: ${error.message}")
+                close()
+            }
         }
         ref.addChildEventListener(listener)
-        awaitClose { ref.removeEventListener(listener) }
+        awaitClose { ref.addChildEventListener(listener) }
     }
 
     override suspend fun getAllMessage2(id: String, idUser: String): List<ChatModel> {
@@ -417,7 +432,10 @@ class DAO @Inject constructor() : AccessDAO {
                 val alerts = snapshot.children.mapNotNull { it.getValue(SafetyAlertModel::class.java) }
                 trySendBlocking(alerts.sortedByDescending { it.date })
             }
-            override fun onCancelled(error: DatabaseError) { close(error.toException()) }
+            override fun onCancelled(error: DatabaseError) {
+                Log.e("DAO", "getSafetyAlerts cancelled: ${error.message}")
+                close()
+            }
         }
         ref.addValueEventListener(listener)
         awaitClose { ref.removeEventListener(listener) }
@@ -438,7 +456,10 @@ class DAO @Inject constructor() : AccessDAO {
                 val list = snapshot.children.mapNotNull { it.getValue(EmergencyModel::class.java) }
                 trySendBlocking(list)
             }
-            override fun onCancelled(error: DatabaseError) { close(error.toException()) }
+            override fun onCancelled(error: DatabaseError) {
+                Log.e("DAO", "getActiveEmergencies cancelled: ${error.message}")
+                close()
+            }
         }
         ref.addValueEventListener(listener)
         awaitClose { ref.removeEventListener(listener) }
@@ -471,7 +492,10 @@ class DAO @Inject constructor() : AccessDAO {
                 }
                 trySendBlocking(list)
             }
-            override fun onCancelled(error: DatabaseError) { close(error.toException()) }
+            override fun onCancelled(error: DatabaseError) {
+                Log.e("DAO", "getSafePlaces cancelled: ${error.message}")
+                close()
+            }
         }
         ref.addValueEventListener(listener)
         awaitClose { ref.removeEventListener(listener) }
